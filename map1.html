@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Carte interactive codes postaux France</title>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 90vh; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Initialiser la carte centrée sur la France
+    var map = L.map('map').setView([46.6, 2.4], 6);
+
+    // Ajouter la couche OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Fonction pour définir la couleur selon nbNumeros
+    function getColor(nb) {
+      return nb > 20000 ? '#800026' :
+             nb > 10000 ? '#BD0026' :
+             nb > 5000  ? '#E31A1C' :
+             nb > 1000  ? '#FC4E2A' :
+             nb > 500   ? '#FD8D3C' :
+                          '#FEB24C';
+    }
+
+    // Fonction de style pour chaque polygone
+    function style(feature) {
+      return {
+        fillColor: getColor(feature.properties.nbNumeros),
+        weight: 1,
+        opacity: 1,
+        color: '#000000',
+        fillOpacity: 0.7
+      };
+    }
+
+    // Charger le GeoJSON
+    fetch('contours-codes-postaux.geojson')
+      .then(res => res.json())
+      .then(data => {
+        L.geoJSON(data, {
+          style: style,
+          onEachFeature: function(feature, layer) {
+            let cp = feature.properties.codePostal || "Inconnu";
+            let nb = feature.properties.nbNumeros || "N/A";
+            layer.bindTooltip(`Code Postal: ${cp}<br>Nb Numéros: ${nb}`);
+          }
+        }).addTo(map);
+      })
+      .catch(err => console.error('Impossible de charger le GeoJSON:', err));
+  </script>
+</body>
+</html>
