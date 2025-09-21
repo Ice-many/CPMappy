@@ -235,21 +235,22 @@
       });
     }
 
-    // Gestion des boutons toggle pour afficher/masquer les listes
+    // Correction ici : chercher avec "filter-" + target + "List" car les div ont cet ID
     function setupFilterToggleButtons() {
       const buttons = document.querySelectorAll('.toggle-btn');
       buttons.forEach(btn => {
         const targetId = btn.getAttribute('data-target');
-        btn.textContent = capitalizeFirstLetter(targetId);
+        // Initialiser texte bouton
+        btn.textContent = capitalizeFirstLetter(targetId.replace(/List$/, ''));
         btn.addEventListener('click', () => {
           const el = document.getElementById('filter-' + targetId);
           if (!el) return;
           if (el.classList.contains('hidden')) {
             el.classList.remove('hidden');
-            btn.textContent = 'Masquer ' + capitalizeFirstLetter(targetId);
+            btn.textContent = 'Masquer ' + capitalizeFirstLetter(targetId.replace(/List$/, ''));
           } else {
             el.classList.add('hidden');
-            btn.textContent = capitalizeFirstLetter(targetId);
+            btn.textContent = capitalizeFirstLetter(targetId.replace(/List$/, ''));
           }
         });
       });
@@ -331,8 +332,9 @@
     }
 
     function buildFilterLists() {
-      ['agence', 'region', 'antenne', 'departement', 'texte2'].forEach(filter => {
-        buildFilterList(filter, filter + 'List');
+      ['agenceList', 'regionList', 'antenneList', 'departementList', 'texte2List'].forEach(containerId => {
+        const filterName = containerId.replace(/List$/, '');
+        buildFilterList(filterName, containerId);
       });
 
       ['agence', 'region', 'antenne', 'departement', 'texte2'].forEach(filt => {
@@ -388,8 +390,7 @@
             }
           }).addTo(map);
 
-          // On ne recentre plus ici, cela est fait après conversion
-
+          // Pas de fitBounds ici (centrage forcé avant chargement)
           filterGeoLayer();
         })
         .catch(err => {
@@ -425,7 +426,7 @@
         buildFilterLists();
         setupFilterToggleButtons();
 
-        // Forcer centrage sur France dès chargement de la conversion
+        // Forcer centrage sur France dès conversion
         map.setView([46.6, 2.4], 6);
 
         updateMapWithExtraProperties();
