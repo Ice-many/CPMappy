@@ -12,7 +12,6 @@
       margin:0; padding:0; height: 100%;
       font-family: Arial, sans-serif;
       overflow: hidden;
-      background: #f0f0f0;
     }
     body {
       display: flex;
@@ -20,7 +19,7 @@
       user-select: none;
     }
     #sidebar-left, #sidebar-right {
-      background: #000; /* Fond noir */
+      background: #000; /* fond noir */
       color: white;
       overflow-y: auto;
       padding: 10px;
@@ -89,7 +88,7 @@
     #toggleLeftBtn, #toggleRightBtn {
       position: fixed;
       top: 10px;
-      background: #28a745;
+      background: #6a0dad; /* violet */
       color: white;
       border: none;
       padding: 8px 14px;
@@ -98,7 +97,7 @@
       cursor: pointer;
       z-index: 1300;
       user-select: none;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(106,13,173,0.7);
     }
     #toggleLeftBtn {
       left: 10px;
@@ -244,7 +243,6 @@
     const buttons = document.querySelectorAll('.toggle-btn');
     buttons.forEach(btn => {
       const targetId = btn.getAttribute('data-target');
-      // Initialiser texte bouton
       btn.textContent = capitalizeFirstLetter(targetId.replace(/List$/, ''));
       btn.addEventListener('click', () => {
         const el = document.getElementById('filter-' + targetId.replace(/List$/, ''));
@@ -256,6 +254,7 @@
           el.classList.add('hidden');
           btn.textContent = capitalizeFirstLetter(targetId.replace(/List$/, ''));
         }
+        filterGeoLayer(); // Mise à jour filrage aussi au toggle liste
       });
     });
   }
@@ -266,12 +265,22 @@
 
   document.getElementById('toggleLeftBtn').addEventListener('click', () => {
     const left = document.getElementById('sidebar-left');
-    left.style.display = (left.style.display === 'none') ? 'block' : 'none';
+    if (left.style.display === 'none') {
+      left.style.display = 'block';
+    } else {
+      left.style.display = 'none';
+    }
+    filterGeoLayer(); // mettre à jour filtre si panneau masqué
   });
 
   document.getElementById('toggleRightBtn').addEventListener('click', () => {
     const right = document.getElementById('sidebar-right');
-    right.style.display = (right.style.display === 'none') ? 'block' : 'none';
+    if (right.style.display === 'none') {
+      right.style.display = 'block';
+    } else {
+      right.style.display = 'none';
+    }
+    filterGeoLayer();
   });
 
   function filterGeoLayer() {
@@ -291,8 +300,13 @@
       show = show && filterState.agence.get(valAgence) !== false;
       show = show && filterState.region.get(valRegion) !== false;
       show = show && filterState.antenne.get(valAntenne) !== false;
+
+      if(document.getElementById('sidebar-left').style.display==='none') show = false;
+
       show = show && filterState.departement.get(valDepartement) !== false;
       show = show && filterState.texte2.get(valTexte2) !== false;
+
+      if(document.getElementById('sidebar-right').style.display==='none') show = false;
 
       if (show) {
         layer.addTo(map);
@@ -346,6 +360,62 @@
     });
   }
 
+  function updateMapWithExtraProperties() {
+    fetch('contours-codes-postaux.geojson')
+      .then(res => {
+        if (!res.ok) throw new Error("Le fichier GeoJSON n'a pas été chargé correctement.");
+        return res.json();
+      })
+      .then(data => {
+        if (geoLayer) map.removeLayer(geoLayer);
+
+        geoLayer = L.geoJSON(data, {
+          style: feature => {
+            let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
+            let extras = extraProperties[cp] || {};
+            return {
+              fillColor: getKeyIgnoreCase(extras, "Fond_couleur") || "#66cc66",
+              color: getKeyIgnoreCase(extras, "Ligne_couleur") || "#000000",
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.7
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
+            let extras = extraProperties[cp] || {};
+
+            let texteParts = [];
+            ["Texte1", "Texte2", "Texte3", "Texte4"].forEach(field => {
+              let val = getKeyIgnoreCase(extras, field);
+              if (val) texteParts.push(val);
+            });
+
+            let tooltipText = texteParts.join(" ");
+            let policeCouleur = getKeyIgnoreCase(extras, "police couleur") || '#000000';
+
+            layer.bindTooltip(
+              `<span style="color: ${policeCouleur};">${tooltipText || ("Code Postal : " + cp)}</span>`,
+              {className: 'custom-tooltip'}
+            );
+
+            let clicUrl = getKeyIgnoreCase(extras, "Clic URL");
+            if (clicUrl && clicUrl.trim().length > 0) {
+              layer.on("click", () => window.open(clicUrl, '_blank'));
+              layer.setStyle({ cursor: "pointer" });
+            }
+          }
+        }).addTo(map);
+
+        filterGeoLayer();
+      })
+      .catch(err => {
+        alert(err.message);
+        console.error(err);
+        map.setView([46.6, 2.4], 6);
+      });
+  }
+
   document.getElementById('convertBtn').onclick = () => {
     const fileInput = document.getElementById('uploadExcel');
     const file = fileInput.files[0];
@@ -381,6 +451,6 @@
     };
     reader.readAsArrayBuffer(file);
   };
-  </script>
+</script>
 </body>
 </html>
