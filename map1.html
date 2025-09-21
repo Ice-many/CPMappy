@@ -16,6 +16,7 @@
       padding: 10px;
       box-shadow: 2px 0 5px rgba(0,0,0,0.1);
       font-size: 14px;
+      transition: max-height 0.3s ease;
     }
     #sidebar-left {
       border-right: 1px solid #ccc;
@@ -29,6 +30,11 @@
     }
     h2 {
       margin-top: 0; font-size: 18px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      cursor: pointer;
     }
     label {
       display: block;
@@ -50,6 +56,19 @@
       cursor: pointer;
       user-select: none;
     }
+    .toggle-btn {
+      font-size: 14px;
+      background: #007bff;
+      border: none;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -59,11 +78,15 @@
       <button id="convertBtn">Conversion JSON et Affichage</button>
     </div>
 
-    <h2>Filtres Gauche</h2>
+    <h2>Filtres Gauche
+      <button class="toggle-btn" data-target="agenceList">Agence</button>
+      <button class="toggle-btn" data-target="regionList">Région</button>
+      <button class="toggle-btn" data-target="antenneList">Antenne</button>
+    </h2>
 
     <div id="filter-agence">
       <label class="selectall-label"><input type="checkbox" id="agence-select-all" checked> Tout Agences</label>
-      <div id="agenceList">Veuillez charger un fichier Excel.</div>
+      <div id="agenceList"></div>
     </div>
 
     <div id="filter-region">
@@ -80,7 +103,10 @@
   <div id="map"></div>
 
   <div id="sidebar-right">
-    <h2>Filtres Droite</h2>
+    <h2>Filtres Droite
+      <button class="toggle-btn" data-target="departementList">Département</button>
+      <button class="toggle-btn" data-target="texte2List">Texte2</button>
+    </h2>
 
     <div id="filter-departement">
       <label class="selectall-label"><input type="checkbox" id="departement-select-all" checked> Tout Départements</label>
@@ -122,7 +148,6 @@
       texte2: new Map()
     };
 
-    // Fonction utilitaire tolérante pour récupérer valeur d'objet via clé insensible à casse et espaces
     function getKeyIgnoreCase(obj, key) {
       key = key.toLowerCase().replace(/\s+/g, '');
       for (const k in obj) {
@@ -131,7 +156,6 @@
       return null;
     }
 
-    // Crée les listes de cases à cocher d'un filtre dans un container
     function buildFilterList(filterName, containerId) {
       const container = document.getElementById(containerId);
       container.innerHTML = '';
@@ -157,7 +181,6 @@
       });
     }
 
-    // Met à jour le checkbox "Tout" en fonction de l’état des cases
     function updateSelectAllCheckbox(filterName) {
       const selectAllCheckbox = document.getElementById(filterName + '-select-all');
       const values = Array.from(filterState[filterName].values());
@@ -165,7 +188,6 @@
       selectAllCheckbox.indeterminate = values.some(v => v === true) && !selectAllCheckbox.checked;
     }
 
-    // Gestion du clique sur "Tout cocher/décocher"
     function setupSelectAllListener(filterName) {
       const selectAllCheckbox = document.getElementById(filterName + '-select-all');
       selectAllCheckbox.addEventListener('change', () => {
@@ -181,7 +203,6 @@
       });
     }
 
-    // Fonction qui filtre les polygones selon tous les filtres : intersection des critères cochés
     function filterGeoLayer() {
       if (!geoLayer) return;
       geoLayer.eachLayer(layer => {
@@ -189,14 +210,12 @@
 
         let extras = extraProperties[cp] || {};
 
-        // Récupérer les valeurs pour chaque filtre
         let valAgence = getKeyIgnoreCase(extras, "Agence") || "";
         let valRegion = getKeyIgnoreCase(extras, "région") || "";
         let valAntenne = getKeyIgnoreCase(extras, "Antenne") || "";
         let valDepartement = getKeyIgnoreCase(extras, "Departement") || "";
         let valTexte2 = getKeyIgnoreCase(extras, "Texte2") || "";
 
-        // Décider affichage: true si toutes les catégories cochées sont vraies
         let show = true;
 
         show = show && filterState.agence.get(valAgence) !== false;
@@ -213,9 +232,7 @@
       });
     }
 
-    // Met à jour les filtres distincts à partir des données Excel chargées
     function updateDistinctValues(jsonData) {
-      // Réinitialiser
       for (const key in distinctValues) {
         distinctValues[key].clear();
         filterState[key].clear();
@@ -248,7 +265,6 @@
       });
     }
 
-    // Construction des listes de filtres et configuration des "Tout"
     function buildFilterLists() {
       buildFilterList('agence', 'agenceList');
       buildFilterList('region', 'regionList');
@@ -259,6 +275,30 @@
       ['agence', 'region', 'antenne', 'departement', 'texte2'].forEach(filt => {
         updateSelectAllCheckbox(filt);
         setupSelectAllListener(filt);
+      });
+    }
+
+    function toggleListVisibility(button) {
+      const target = button.getAttribute('data-target');
+      const el = document.getElementById(target);
+      if(!el) return;
+      if(el.style.display === 'none') {
+        el.style.display = 'block';
+        button.textContent = button.getAttribute('data-label-hide');
+      } else {
+        el.style.display = 'none';
+        button.textContent = button.getAttribute('data-label-show');
+      }
+    }
+
+    // Ajout des listeners toggle sur boutons
+    function setupToggleButtons() {
+      const buttons = document.querySelectorAll('.toggle-btn');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => toggleListVisibility(btn));
+        // Initialisation labels
+        btn.setAttribute('data-label-show', btn.textContent);
+        btn.setAttribute('data-label-hide', 'Masquer');
       });
     }
 
@@ -336,8 +376,6 @@
         var jsonData = XLSX.utils.sheet_to_json(sheet);
 
         extraProperties = {};
-
-        // Récupérer les propriétés et créer les sets de codes postaux par filtre
         updateDistinctValues(jsonData);
 
         jsonData.forEach(function(item) {
@@ -346,6 +384,7 @@
         });
 
         buildFilterLists();
+        setupToggleButtons();
         updateMapWithExtraProperties();
         alert("Conversion et affichage réalisés !");
       };
