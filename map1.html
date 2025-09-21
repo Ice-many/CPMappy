@@ -88,7 +88,7 @@
     #toggleLeftBtn, #toggleRightBtn {
       position: fixed;
       top: 10px;
-      background: #00bfff; /* bleu cyan */
+      background: #00bfff; /* bleu cyan initial */
       color: white;
       border: none;
       padding: 8px 14px;
@@ -98,12 +98,11 @@
       z-index: 1300;
       user-select: none;
       box-shadow: 0 2px 8px rgba(0,191,255,0.7);
+      transition: background-color 0.3s;
     }
-    #toggleLeftBtn {
-      left: 10px;
-    }
-    #toggleRightBtn {
-      right: 10px;
+    #toggleLeftBtn.violet, #toggleRightBtn.violet {
+      background: #6a0dad !important; /* violet */
+      box-shadow: 0 2px 8px rgba(106,13,173,0.7) !important;
     }
     .hidden {
       display: none !important;
