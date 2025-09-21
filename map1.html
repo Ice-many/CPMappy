@@ -20,21 +20,27 @@
     }
     #sidebar-left {
       border-right: 1px solid #ccc;
+      position: relative;
     }
     #sidebar-right {
       border-left: 1px solid #ccc;
+      position: relative;
     }
     #map {
       flex-grow: 1;
       height: 100vh;
     }
     h2 {
-      margin-top: 0; font-size: 18px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 4px;
+      margin-top: 0; 
+      font-size: 18px; 
+      margin-bottom: 10px; 
+      border-bottom: 1px solid #ccc; 
+      padding-bottom: 4px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       user-select: none;
-      cursor: pointer;
+      cursor: default;
     }
     label {
       display: block;
@@ -43,7 +49,13 @@
       user-select: none;
     }
     #controls {
-      padding:10px; background:#fff; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #ddd; margin-bottom: 10px;
+      padding:10px; 
+      background:#fff; 
+      position: sticky; 
+      top: 0; 
+      z-index: 1000; 
+      border-bottom: 1px solid #ddd; 
+      margin-bottom: 10px;
     }
     .custom-tooltip {
       font-weight: bold;
@@ -65,23 +77,49 @@
       border-radius: 4px;
       cursor: pointer;
       user-select: none;
+      margin-left: 4px;
     }
-    .hidden {
-      display: none;
+    /* Positionnement boutons toggle */
+    #toggleLeftBtn, #toggleRightBtn {
+      position: fixed;
+      top: 10px;
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      font-size: 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 1300;
+      user-select: none;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    #toggleLeftBtn {
+      left: 10px;
+    }
+    #toggleRightBtn {
+      right: 10px;
     }
   </style>
 </head>
 <body>
+
+  <button id="toggleLeftBtn" title="Afficher/Masquer Réseau">Réseau</button>
+  <button id="toggleRightBtn" title="Afficher/Masquer Département">Département</button>
+
   <div id="sidebar-left">
     <div id="controls">
       <input type="file" id="uploadExcel" accept=".xlsx" />
       <button id="convertBtn">Conversion JSON et Affichage</button>
     </div>
 
-    <h2>Filtres Gauche
-      <button class="toggle-btn" data-target="agenceList">Agence</button>
-      <button class="toggle-btn" data-target="regionList">Région</button>
-      <button class="toggle-btn" data-target="antenneList">Antenne</button>
+    <h2>
+      Filtres Gauche
+      <span>
+        <button class="toggle-btn" data-target="agenceList">Agence</button>
+        <button class="toggle-btn" data-target="regionList">Région</button>
+        <button class="toggle-btn" data-target="antenneList">Antenne</button>
+      </span>
     </h2>
 
     <div id="filter-agence">
@@ -103,9 +141,12 @@
   <div id="map"></div>
 
   <div id="sidebar-right">
-    <h2>Filtres Droite
-      <button class="toggle-btn" data-target="departementList">Département</button>
-      <button class="toggle-btn" data-target="texte2List">Texte2</button>
+    <h2>
+      Filtres Droite
+      <span>
+        <button class="toggle-btn" data-target="departementList">Département</button>
+        <button class="toggle-btn" data-target="texte2List">Texte2</button>
+      </span>
     </h2>
 
     <div id="filter-departement">
@@ -120,7 +161,7 @@
   </div>
 
   <script>
-    var map = L.map('map', { minZoom: 6 }).setView([46.6, 2.4], 6);
+    var map = L.map('map', { minZoom: 6, center: [46.6, 2.4], zoom: 6 });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
@@ -130,7 +171,6 @@
     let extraProperties = {};
     let geoLayer;
 
-    // Structures pour stocker valeurs uniques par filtre
     let distinctValues = {
       agence: new Map(),
       region: new Map(),
@@ -139,7 +179,6 @@
       texte2: new Map()
     };
 
-    // Etat des filtres cochés
     let filterState = {
       agence: new Map(),
       region: new Map(),
@@ -281,8 +320,8 @@
     function toggleListVisibility(button) {
       const target = button.getAttribute('data-target');
       const el = document.getElementById(target);
-      if(!el) return;
-      if(el.style.display === 'none') {
+      if (!el) return;
+      if (el.style.display === 'none' || el.style.display === '') {
         el.style.display = 'block';
         button.textContent = button.getAttribute('data-label-hide');
       } else {
@@ -291,7 +330,7 @@
       }
     }
 
-    // Ajout des listeners toggle sur boutons
+    // Ajout des listeners toggle sur boutons (pour filtre agences, régions, antennes)
     function setupToggleButtons() {
       const buttons = document.querySelectorAll('.toggle-btn');
       buttons.forEach(btn => {
@@ -301,6 +340,18 @@
         btn.setAttribute('data-label-hide', 'Masquer');
       });
     }
+
+    // Boutons Réseau (sidebar gauche) et Département (sidebar droite)
+    document.getElementById('toggleLeftBtn').addEventListener('click', () => {
+      const left = document.getElementById('sidebar-left');
+      if (left.style.display === 'none') left.style.display = 'block';
+      else left.style.display = 'none';
+    });
+    document.getElementById('toggleRightBtn').addEventListener('click', () => {
+      const right = document.getElementById('sidebar-right');
+      if (right.style.display === 'none') right.style.display = 'block';
+      else right.style.display = 'none';
+    });
 
     function updateMapWithExtraProperties() {
       fetch('contours-codes-postaux.geojson')
@@ -351,12 +402,20 @@
             }
           }).addTo(map);
 
-          map.fitBounds(geoLayer.getBounds());
+          // Centrage sûr seulement si la couche GeoJSON est valide
+          const bounds = geoLayer.getBounds();
+          if (bounds.isValid()) {
+            map.fitBounds(bounds);
+          } else {
+            // Sinon centre par défaut sur la France
+            map.setView([46.6, 2.4], 6);
+          }
           filterGeoLayer();
         })
         .catch(err => {
           alert(err.message);
           console.error(err);
+          map.setView([46.6, 2.4], 6);
         });
     }
 
@@ -391,5 +450,6 @@
       reader.readAsArrayBuffer(file);
     };
   </script>
+
 </body>
 </html>
