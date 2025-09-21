@@ -112,7 +112,6 @@
     #toggleRightBtn {
       right: 10px;
     }
-
     .hidden { display: none !important; }
   </style>
 </head>
@@ -197,6 +196,7 @@
     dsp: new Map()
   };
 
+  // Helper to get property with ignore case & whitespace
   function getKeyIgnoreCase(obj, key) {
     key = key.toLowerCase().replace(/\s+/g, '');
     for (const k in obj) {
@@ -217,11 +217,11 @@
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
-      checkbox.checked = true;
-      filterState[filterName].set(val, true);
+      checkbox.checked = filterState[filterName].get(val) !== false;
 
       checkbox.addEventListener('change', () => {
         filterState[filterName].set(val, checkbox.checked);
+        updateFilterOptionsAccordingToSelection();
         filterGeoLayer();
         updateSelectAllCheckbox(filterName);
       });
@@ -247,11 +247,9 @@
       const checked = selectAllCheckbox.checked;
       filterState[filterName].forEach((_, key) => filterState[filterName].set(key, checked));
 
-      const container = document.getElementById(filterName + 'List');
-      Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
-        cb.checked = checked;
-      });
-
+      buildFilterList(filterName, filterName + 'List');
+      updateSelectAllCheckbox(filterName);
+      updateFilterOptionsAccordingToSelection();
       filterGeoLayer();
     });
   }
@@ -289,29 +287,75 @@
     right.style.display = (right.style.display === 'none') ? 'block' : 'none';
   });
 
+  // Calcule les codes postaux valides selon filtre actif
+  function getFilteredCPs() {
+    const validCPs = new Set();
+
+    for (const cp in extraProperties) {
+      const extras = extraProperties[cp];
+      const valAgence = getKeyIgnoreCase(extras, "Agence") || "";
+      const valRegion = getKeyIgnoreCase(extras, "région") || "";
+      const valAntenne = getKeyIgnoreCase(extras, "Antenne") || "";
+      const valDepartement = getKeyIgnoreCase(extras, "Departement") || "";
+      const valTexte2 = getKeyIgnoreCase(extras, "Texte2") || "";
+      const valDSP = getKeyIgnoreCase(extras, "DSP") || "";
+
+      if (
+        filterState.agence.get(valAgence) !== false &&
+        filterState.region.get(valRegion) !== false &&
+        filterState.antenne.get(valAntenne) !== false &&
+        filterState.departement.get(valDepartement) !== false &&
+        filterState.texte2.get(valTexte2) !== false &&
+        filterState.dsp.get(valDSP) !== false
+      ) {
+        validCPs.add(cp);
+      }
+    }
+
+    return validCPs;
+  }
+
+  // Met à jour les options visibles et cochées sur tous les filtres
+  function updateFilterOptionsAccordingToSelection() {
+    const validCPs = getFilteredCPs();
+
+    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filterName => {
+      const possibleValues = new Map();
+
+      validCPs.forEach(cp => {
+        const extras = extraProperties[cp];
+        if (!extras) return;
+        const val = getKeyIgnoreCase(extras, filterName) || "";
+        if (!possibleValues.has(val)) possibleValues.set(val, new Set());
+        possibleValues.get(val).add(cp);
+      });
+
+      distinctValues[filterName].clear();
+      const prevState = filterState[filterName];
+      filterState[filterName] = new Map();
+
+      possibleValues.forEach((cpSet, val) => {
+        distinctValues[filterName].set(val, cpSet);
+        filterState[filterName].set(val, prevState.get(val) !== false);
+      });
+
+      // Reconstruire la liste à l’affichage
+      buildFilterList(filterName, filterName + 'List');
+
+      // Mettre à jour la checkbox 'select all'
+      updateSelectAllCheckbox(filterName);
+
+      // Réassocier les listeners sur select all
+      setupSelectAllListener(filterName);
+    });
+  }
+
   function filterGeoLayer() {
     if (!geoLayer) return;
+    const validCPs = getFilteredCPs();
     geoLayer.eachLayer(layer => {
       let cp = layer.feature.properties.code_postal || layer.feature.properties.codePostal || layer.feature.properties.code || "";
-      let extras = extraProperties[cp] || {};
-
-      let valAgence = getKeyIgnoreCase(extras, "Agence") || "";
-      let valRegion = getKeyIgnoreCase(extras, "région") || "";
-      let valAntenne = getKeyIgnoreCase(extras, "Antenne") || "";
-      let valDepartement = getKeyIgnoreCase(extras, "Departement") || "";
-      let valTexte2 = getKeyIgnoreCase(extras, "Texte2") || "";
-      let valDSP = getKeyIgnoreCase(extras, "DSP") || "";
-
-      let show = true;
-
-      show = show && filterState.agence.get(valAgence) !== false;
-      show = show && filterState.region.get(valRegion) !== false;
-      show = show && filterState.antenne.get(valAntenne) !== false;
-      show = show && filterState.departement.get(valDepartement) !== false;
-      show = show && filterState.texte2.get(valTexte2) !== false;
-      show = show && filterState.dsp.get(valDSP) !== false;
-
-      if (show) {
+      if (validCPs.has(cp)) {
         layer.addTo(map);
       } else {
         map.removeLayer(layer);
@@ -356,17 +400,6 @@
     });
   }
 
-  function buildFilterLists() {
-    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
-      buildFilterList(filter, filter + 'List');
-    });
-
-    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filt => {
-      updateSelectAllCheckbox(filt);
-      setupSelectAllListener(filt);
-    });
-  }
-
   document.getElementById('convertBtn').onclick = () => {
     const fileInput = document.getElementById('uploadExcel');
     const file = fileInput.files[0];
@@ -390,6 +423,11 @@
         if (cp.length > 0) extraProperties[cp] = item;
       });
 
+      // Initialiser avec tout coché au départ
+      Object.keys(filterState).forEach(key => {
+        filterState[key].forEach((_, val) => filterState[key].set(val, true));
+      });
+
       buildFilterLists();
 
       setupFilterToggleButtons();
@@ -401,6 +439,17 @@
     };
     reader.readAsArrayBuffer(file);
   };
+
+  function buildFilterLists() {
+    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
+      buildFilterList(filter, filter + 'List');
+    });
+
+    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filt => {
+      updateSelectAllCheckbox(filt);
+      setupSelectAllListener(filt);
+    });
+  }
 
   function updateMapWithExtraProperties() {
     fetch('contours-codes-postaux.geojson')
@@ -451,6 +500,18 @@
         map.setView([46.6, 2.4], 6);
       });
   }
+
+  // Initialiser filtres au chargement
+  function initializeFiltersOnLoad() {
+    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
+      filterState[filter] = new Map();
+      distinctValues[filter] = new Map();
+    });
+  }
+
+  initializeFiltersOnLoad();
+  setupFilterToggleButtons();
+
 </script>
 </body>
 </html>
