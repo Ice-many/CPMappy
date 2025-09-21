@@ -144,7 +144,6 @@
       <div id="antenneList"></div>
     </div>
 
-    <!-- Nouveau filtre DSP -->
     <button class="toggle-btn" data-target="dsp">DSP</button>
     <div id="filter-dsp" class="hidden">
       <label class="selectall-label"><input type="checkbox" id="dsp-select-all" checked> Tout DSP</label>
@@ -197,7 +196,6 @@
     dsp: new Map()
   };
 
-  // Fonction utilitaire pour retrouver clé sans casse ni espaces
   function getKeyIgnoreCase(obj, key) {
     key = key.toLowerCase().replace(/\s+/g, '');
     for (const k in obj) {
@@ -206,7 +204,6 @@
     return null;
   }
 
-  // Construit dynamiquement la liste des choix pour un filtre
   function buildFilterList(filterName, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -234,7 +231,6 @@
     });
   }
 
-  // Met à jour l'état de la checkbox "Tout"
   function updateSelectAllCheckbox(filterName) {
     const selectAllCheckbox = document.getElementById(filterName + '-select-all');
     if(!selectAllCheckbox) return;
@@ -243,7 +239,6 @@
     selectAllCheckbox.indeterminate = values.some(v => v === true) && !selectAllCheckbox.checked;
   }
 
-  // Gère la case "Tout" de chaque filtre
   function setupSelectAllListener(filterName) {
     const selectAllCheckbox = document.getElementById(filterName + '-select-all');
     if(!selectAllCheckbox) return;
@@ -258,7 +253,6 @@
     });
   }
 
-  // Active le toggle affichage/masque des listes de filtres
   function setupFilterToggleButtons() {
     const buttons = document.querySelectorAll('.toggle-btn');
     buttons.forEach(btn => {
@@ -292,7 +286,6 @@
     right.style.display = (right.style.display === 'none') ? 'block' : 'none';
   });
 
-  // Filtre selon les états sélectionnés (tous liés)
   function getFilteredCPs() {
     const validCPs = new Set();
 
@@ -320,7 +313,6 @@
     return validCPs;
   }
 
-  // Mise à jour des options des filtres selon sélection croisée
   function updateFilterOptionsAccordingToSelection() {
     const validCPs = getFilteredCPs();
 
@@ -352,7 +344,6 @@
     setupFilterToggleButtons();
   }
 
-  // Mise à jour de la carte selon filtres
   function filterGeoLayer() {
     if (!geoLayer) return;
     const validCPs = getFilteredCPs();
@@ -366,7 +357,6 @@
     });
   }
 
-  // Mise à jour des valeurs distinctes à partir du JSON Excel
   function updateDistinctValues(jsonData) {
     for (const key in distinctValues) {
       distinctValues[key].clear();
@@ -404,7 +394,6 @@
     });
   }
 
-  // Construction initiale des listes de filtres
   function buildFilterLists() {
     ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
       buildFilterList(filter, filter + 'List');
@@ -418,7 +407,6 @@
     setupFilterToggleButtons();
   }
 
-  // Chargement et conversion fichier Excel
   document.getElementById('convertBtn').onclick = () => {
     const fileInput = document.getElementById('uploadExcel');
     const file = fileInput.files[0];
@@ -457,7 +445,6 @@
     reader.readAsArrayBuffer(file);
   };
 
-  // Chargement GeoJSON et création couche carte
   function updateMapWithExtraProperties() {
     fetch('contours-codes-postaux.geojson')
       .then(res => {
