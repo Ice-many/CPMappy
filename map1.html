@@ -235,6 +235,40 @@
       });
     }
 
+    // Gestion des boutons toggle pour afficher/masquer les listes
+    function setupFilterToggleButtons() {
+      const buttons = document.querySelectorAll('.toggle-btn');
+      buttons.forEach(btn => {
+        const targetId = btn.getAttribute('data-target');
+        btn.textContent = capitalizeFirstLetter(targetId);
+        btn.addEventListener('click', () => {
+          const el = document.getElementById('filter-' + targetId);
+          if (!el) return;
+          if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+            btn.textContent = 'Masquer ' + capitalizeFirstLetter(targetId);
+          } else {
+            el.classList.add('hidden');
+            btn.textContent = capitalizeFirstLetter(targetId);
+          }
+        });
+      });
+    }
+
+    function capitalizeFirstLetter(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    document.getElementById('toggleLeftBtn').addEventListener('click', () => {
+      const left = document.getElementById('sidebar-left');
+      left.style.display = (left.style.display === 'none') ? 'block' : 'none';
+    });
+
+    document.getElementById('toggleRightBtn').addEventListener('click', () => {
+      const right = document.getElementById('sidebar-right');
+      right.style.display = (right.style.display === 'none') ? 'block' : 'none';
+    });
+
     function filterGeoLayer() {
       if (!geoLayer) return;
       geoLayer.eachLayer(layer => {
@@ -248,6 +282,7 @@
         let valTexte2 = getKeyIgnoreCase(extras, "Texte2") || "";
 
         let show = true;
+
         show = show && filterState.agence.get(valAgence) !== false;
         show = show && filterState.region.get(valRegion) !== false;
         show = show && filterState.antenne.get(valAntenne) !== false;
@@ -306,32 +341,6 @@
       });
     }
 
-    // Gestion des boutons toggle pour afficher/masquer les listes
-    document.querySelectorAll('.toggle-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const targetId = btn.getAttribute('data-target');
-        const el = document.getElementById('filter-' + targetId);
-        if (!el) return;
-        if (el.classList.contains('hidden')) {
-          el.classList.remove('hidden');
-          btn.textContent = 'Masquer ' + targetId.charAt(0).toUpperCase() + targetId.slice(1);
-        } else {
-          el.classList.add('hidden');
-          btn.textContent = targetId.charAt(0).toUpperCase() + targetId.slice(1);
-        }
-      });
-    });
-
-    // Boutons Réseau et Département pour afficher/masquer les sidebars gauche et droite
-    document.getElementById('toggleLeftBtn').addEventListener('click', () => {
-      const left = document.getElementById('sidebar-left');
-      left.style.display = (left.style.display === 'none') ? 'block' : 'none';
-    });
-    document.getElementById('toggleRightBtn').addEventListener('click', () => {
-      const right = document.getElementById('sidebar-right');
-      right.style.display = (right.style.display === 'none') ? 'block' : 'none';
-    });
-
     function updateMapWithExtraProperties() {
       fetch('contours-codes-postaux.geojson')
         .then(res => {
@@ -379,14 +388,14 @@
             }
           }).addTo(map);
 
-          // On ne centre pas encore ici ! centrage forcé après conversion du fichier
+          // On ne recentre plus ici, cela est fait après conversion
 
           filterGeoLayer();
         })
         .catch(err => {
           alert(err.message);
           console.error(err);
-          map.setView([46.6, 2.4], 6); // fallback
+          map.setView([46.6, 2.4], 6);
         });
     }
 
@@ -414,8 +423,9 @@
         });
 
         buildFilterLists();
+        setupFilterToggleButtons();
 
-        // Forcer le centrage sur la France dès le chargement du fichier
+        // Forcer centrage sur France dès chargement de la conversion
         map.setView([46.6, 2.4], 6);
 
         updateMapWithExtraProperties();
