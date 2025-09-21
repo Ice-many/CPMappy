@@ -55,13 +55,14 @@
               let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
               let extras = extraProperties[cp] || {};
 
-              return {
-                fillColor: extras["Fond_couleur"] || "#FFFF00",
-                color: extras["Ligne_couleur"] || "#000000",
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.7
-              };
+       return {
+  fillColor: extras["Fond_couleur"] || "#66cc66",
+  color: extras["Fond_couleur"] || "#66cc66", // même couleur que le fond
+  weight: 0,   // pas de contour
+  opacity: 1,
+  fillOpacity: 0.95
+};
+
             },
             onEachFeature: function(feature, layer) {
               let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
@@ -117,3 +118,4 @@
   </script>
 </body>
 </html>
+
