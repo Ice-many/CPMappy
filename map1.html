@@ -88,7 +88,7 @@
     #toggleLeftBtn, #toggleRightBtn {
       position: fixed;
       top: 10px;
-      background: #6a0dad; /* violet */
+      background: #00bfff; /* bleu cyan */
       color: white;
       border: none;
       padding: 8px 14px;
@@ -97,7 +97,7 @@
       cursor: pointer;
       z-index: 1300;
       user-select: none;
-      box-shadow: 0 2px 8px rgba(106,13,173,0.7);
+      box-shadow: 0 2px 8px rgba(0,191,255,0.7);
     }
     #toggleLeftBtn {
       left: 10px;
@@ -120,19 +120,19 @@
       <button id="convertBtn">Conversion JSON et Affichage</button>
     </div>
 
-    <button class="toggle-btn" data-target="agenceList">Agence</button>
+    <button class="toggle-btn" data-target="agence">Agence</button>
     <div id="filter-agence" class="hidden">
       <label class="selectall-label"><input type="checkbox" id="agence-select-all" checked> Tout Agences</label>
       <div id="agenceList"></div>
     </div>
 
-    <button class="toggle-btn" data-target="regionList">Région</button>
+    <button class="toggle-btn" data-target="region">Région</button>
     <div id="filter-region" class="hidden">
       <label class="selectall-label"><input type="checkbox" id="region-select-all" checked> Tout Régions</label>
       <div id="regionList"></div>
     </div>
 
-    <button class="toggle-btn" data-target="antenneList">Antenne</button>
+    <button class="toggle-btn" data-target="antenne">Antenne</button>
     <div id="filter-antenne" class="hidden">
       <label class="selectall-label"><input type="checkbox" id="antenne-select-all" checked> Tout Antennes</label>
       <div id="antenneList"></div>
@@ -142,13 +142,13 @@
   <div id="map"></div>
 
   <div id="sidebar-right">
-    <button class="toggle-btn" data-target="departementList">Département</button>
+    <button class="toggle-btn" data-target="departement">Département</button>
     <div id="filter-departement" class="hidden">
       <label class="selectall-label"><input type="checkbox" id="departement-select-all" checked> Tout Départements</label>
       <div id="departementList"></div>
     </div>
 
-    <button class="toggle-btn" data-target="texte2List">Texte2</button>
+    <button class="toggle-btn" data-target="texte2">Texte2</button>
     <div id="filter-texte2" class="hidden">
       <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Texte2</label>
       <div id="texte2List"></div>
@@ -219,6 +219,7 @@
 
   function updateSelectAllCheckbox(filterName) {
     const selectAllCheckbox = document.getElementById(filterName + '-select-all');
+    if(!selectAllCheckbox) return;
     const values = Array.from(filterState[filterName].values());
     selectAllCheckbox.checked = values.every(v => v === true);
     selectAllCheckbox.indeterminate = values.some(v => v === true) && !selectAllCheckbox.checked;
@@ -226,6 +227,7 @@
 
   function setupSelectAllListener(filterName) {
     const selectAllCheckbox = document.getElementById(filterName + '-select-all');
+    if(!selectAllCheckbox) return;
     selectAllCheckbox.addEventListener('change', () => {
       const checked = selectAllCheckbox.checked;
       filterState[filterName].forEach((_, key) => filterState[filterName].set(key, checked));
@@ -243,16 +245,16 @@
     const buttons = document.querySelectorAll('.toggle-btn');
     buttons.forEach(btn => {
       const targetId = btn.getAttribute('data-target');
-      btn.textContent = capitalizeFirstLetter(targetId.replace(/List$/, ''));
+      btn.textContent = capitalizeFirstLetter(targetId);
       btn.addEventListener('click', () => {
-        const el = document.getElementById('filter-' + targetId.replace(/List$/, ''));
+        const el = document.getElementById('filter-' + targetId);
         if (!el) return;
         if (el.classList.contains('hidden')) {
           el.classList.remove('hidden');
-          btn.textContent = 'Masquer ' + capitalizeFirstLetter(targetId.replace(/List$/, ''));
+          btn.textContent = 'Masquer ' + capitalizeFirstLetter(targetId);
         } else {
           el.classList.add('hidden');
-          btn.textContent = capitalizeFirstLetter(targetId.replace(/List$/, ''));
+          btn.textContent = capitalizeFirstLetter(targetId);
         }
       });
     });
