@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Carte interactive codes postaux France</title>
@@ -143,6 +143,12 @@
       <label class="selectall-label"><input type="checkbox" id="dsp-select-all" checked> Tout DSP</label>
       <div id="dspList"></div>
     </div>
+
+    <button class="toggle-btn" data-target="canaldis">Canal DIS</button>
+    <div id="filter-canaldis" class="hidden">
+      <label class="selectall-label"><input type="checkbox" id="canaldis-select-all" checked> Tout Canal DIS</label>
+      <div id="canaldisList"></div>
+    </div>
   </div>
 
   <div id="map"></div>
@@ -178,7 +184,8 @@
     antenne: new Map(),
     departement: new Map(),
     texte2: new Map(),
-    dsp: new Map()
+    dsp: new Map(),
+    canaldis: new Map()
   };
 
   let filterState = {
@@ -187,7 +194,8 @@
     antenne: new Map(),
     departement: new Map(),
     texte2: new Map(),
-    dsp: new Map()
+    dsp: new Map(),
+    canaldis: new Map()
   };
 
   function getKeyIgnoreCase(obj, key) {
@@ -281,7 +289,10 @@
     right.style.display = (right.style.display === 'none') ? 'block' : 'none';
   });
 
-  // Correction : filtre basé sur la combinaison de tous les filtres
+  function isAnyChecked(filterName) {
+    return Array.from(filterState[filterName].values()).some(v => v === true);
+  }
+
   function filterGeoLayer() {
     if (!geoLayer) return;
     geoLayer.eachLayer(layer => {
@@ -294,6 +305,20 @@
       let valDepartement = getKeyIgnoreCase(extras, "Departement") || "";
       let valTexte2 = getKeyIgnoreCase(extras, "Texte2") || "";
       let valDSP = getKeyIgnoreCase(extras, "DSP") || "";
+      let valCanalDIS = getKeyIgnoreCase(extras, "Canal DIS") || "";
+
+      if (
+        !isAnyChecked("agence") ||
+        !isAnyChecked("region") ||
+        !isAnyChecked("antenne") ||
+        !isAnyChecked("departement") ||
+        !isAnyChecked("texte2") ||
+        !isAnyChecked("dsp") ||
+        !isAnyChecked("canaldis")
+      ) {
+        layer.remove();
+        return;
+      }
 
       let show =
         filterState.agence.get(valAgence) !== false &&
@@ -301,7 +326,8 @@
         filterState.antenne.get(valAntenne) !== false &&
         filterState.departement.get(valDepartement) !== false &&
         filterState.texte2.get(valTexte2) !== false &&
-        filterState.dsp.get(valDSP) !== false;
+        filterState.dsp.get(valDSP) !== false &&
+        filterState.canaldis.get(valCanalDIS) !== false;
 
       if (show) {
         layer.addTo(map);
@@ -327,6 +353,7 @@
       const dep = getKeyIgnoreCase(item, "Departement") || "";
       const tx2 = getKeyIgnoreCase(item, "Texte2") || "";
       const dsp = getKeyIgnoreCase(item, "DSP") || "";
+      const canaldis = getKeyIgnoreCase(item, "Canal DIS") || "";
 
       if (!distinctValues.agence.has(ag)) distinctValues.agence.set(ag, new Set());
       distinctValues.agence.get(ag).add(cp);
@@ -345,15 +372,18 @@
 
       if (!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp, new Set());
       distinctValues.dsp.get(dsp).add(cp);
+
+      if (!distinctValues.canaldis.has(canaldis)) distinctValues.canaldis.set(canaldis, new Set());
+      distinctValues.canaldis.get(canaldis).add(cp);
     });
   }
 
   function buildFilterLists() {
-    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
+    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp', 'canaldis'].forEach(filter => {
       buildFilterList(filter, filter + 'List');
     });
 
-    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filt => {
+    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp', 'canaldis'].forEach(filt => {
       updateSelectAllCheckbox(filt);
       setupSelectAllListener(filt);
     });
@@ -384,7 +414,7 @@
         if (cp.length > 0) extraProperties[cp] = item;
       });
 
-      // Initialiser avec tout coché au départ
+      // Initialiser filtres tout coché
       Object.keys(filterState).forEach(key => {
         filterState[key].forEach((_, val) => filterState[key].set(val, true));
       });
