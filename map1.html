@@ -348,6 +348,9 @@
       // Réassocier les listeners sur select all
       setupSelectAllListener(filterName);
     });
+
+    // Re-relier les boutons toggle pour que les listes puissent s’ouvrir/fermer
+    setupFilterToggleButtons();
   }
 
   function filterGeoLayer() {
@@ -449,6 +452,9 @@
       updateSelectAllCheckbox(filt);
       setupSelectAllListener(filt);
     });
+
+    // Re-relier les boutons toggle pour que les listes puissent s’ouvrir/fermer
+    setupFilterToggleButtons();
   }
 
   function updateMapWithExtraProperties() {
@@ -504,14 +510,4 @@
   // Initialiser filtres au chargement
   function initializeFiltersOnLoad() {
     ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
-      filterState[filter] = new Map();
-      distinctValues[filter] = new Map();
-    });
-  }
-
-  initializeFiltersOnLoad();
-  setupFilterToggleButtons();
-
-</script>
-</body>
-</html>
+      filter
