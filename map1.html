@@ -20,6 +20,14 @@
     .custom-tooltip {
       font-weight: bold;
     }
+    /* Contrôle zoom avec affichage de valeur */
+    .leaflet-control-zoom-level {
+      background: #fff;
+      padding: 6px 10px;
+      font-size: 14px;
+      font-family: Arial, sans-serif;
+      color: #333;
+    }
   </style>
 </head>
 <body>
@@ -29,16 +37,37 @@
   </div>
   <div id="map"></div>
   <script>
-    var map = L.map('map').setView([46.6, 2.4], 6);
+    // Initialisation de la carte avec minZoom fixé à 5
+    var map = L.map('map', { minZoom: 5 }).setView([46.6, 2.4], 6);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
+    // Contrôle personnalisé affichant la valeur du zoom
+    var ZoomLevelControl = L.Control.extend({
+      onAdd: function(map) {
+        var container = L.DomUtil.create('div', 'leaflet-control-zoom-level');
+        container.innerHTML = 'Zoom: ' + map.getZoom();
+        this._container = container;
+        return container;
+      },
+      updateZoom: function(zoom) {
+        this._container.innerHTML = 'Zoom: ' + zoom;
+      }
+    });
+
+    var zoomLevelControl = new ZoomLevelControl({ position: 'topleft' });
+    zoomLevelControl.addTo(map);
+
+    // Mettre à jour la valeur de zoom à chaque changement
+    map.on('zoomend', function() {
+      zoomLevelControl.updateZoom(map.getZoom());
+    });
+
     let extraProperties = {};
 
-    // Fonction pour récupérer une clé dans l’objet avec tolérance de casse et espaces
     function getKeyIgnoreCase(obj, key) {
       key = key.toLowerCase().replace(/\s+/g, '');
       for (const k in obj) {
