@@ -105,9 +105,9 @@
     }
     #toggleLeftBtn {
       left: 10px;
-      background-color: #ffcc00; /* jaune */
-      box-shadow: 0 2px 8px rgba(255,204,0,0.7);
-      color: black;
+      background-color: #ff0000; /* rouge */
+      box-shadow: 0 2px 8px rgba(255,0,0,0.7);
+      color: white;
     }
     #toggleRightBtn {
       right: 10px;
@@ -144,6 +144,7 @@
       <div id="antenneList"></div>
     </div>
 
+    <!-- Nouveau filtre DSP -->
     <button class="toggle-btn" data-target="dsp">DSP</button>
     <div id="filter-dsp" class="hidden">
       <label class="selectall-label"><input type="checkbox" id="dsp-select-all" checked> Tout DSP</label>
@@ -196,7 +197,7 @@
     dsp: new Map()
   };
 
-  // Helper to get property with ignore case & whitespace
+  // Fonction utilitaire pour retrouver clé sans casse ni espaces
   function getKeyIgnoreCase(obj, key) {
     key = key.toLowerCase().replace(/\s+/g, '');
     for (const k in obj) {
@@ -205,6 +206,7 @@
     return null;
   }
 
+  // Construit dynamiquement la liste des choix pour un filtre
   function buildFilterList(filterName, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -232,6 +234,7 @@
     });
   }
 
+  // Met à jour l'état de la checkbox "Tout"
   function updateSelectAllCheckbox(filterName) {
     const selectAllCheckbox = document.getElementById(filterName + '-select-all');
     if(!selectAllCheckbox) return;
@@ -240,6 +243,7 @@
     selectAllCheckbox.indeterminate = values.some(v => v === true) && !selectAllCheckbox.checked;
   }
 
+  // Gère la case "Tout" de chaque filtre
   function setupSelectAllListener(filterName) {
     const selectAllCheckbox = document.getElementById(filterName + '-select-all');
     if(!selectAllCheckbox) return;
@@ -254,6 +258,7 @@
     });
   }
 
+  // Active le toggle affichage/masque des listes de filtres
   function setupFilterToggleButtons() {
     const buttons = document.querySelectorAll('.toggle-btn');
     buttons.forEach(btn => {
@@ -287,7 +292,7 @@
     right.style.display = (right.style.display === 'none') ? 'block' : 'none';
   });
 
-  // Calcule les codes postaux valides selon filtre actif
+  // Filtre selon les états sélectionnés (tous liés)
   function getFilteredCPs() {
     const validCPs = new Set();
 
@@ -315,7 +320,7 @@
     return validCPs;
   }
 
-  // Met à jour les options visibles et cochées sur tous les filtres
+  // Mise à jour des options des filtres selon sélection croisée
   function updateFilterOptionsAccordingToSelection() {
     const validCPs = getFilteredCPs();
 
@@ -339,20 +344,15 @@
         filterState[filterName].set(val, prevState.get(val) !== false);
       });
 
-      // Reconstruire la liste à l’affichage
       buildFilterList(filterName, filterName + 'List');
-
-      // Mettre à jour la checkbox 'select all'
       updateSelectAllCheckbox(filterName);
-
-      // Réassocier les listeners sur select all
       setupSelectAllListener(filterName);
     });
 
-    // Re-relier les boutons toggle pour que les listes puissent s’ouvrir/fermer
     setupFilterToggleButtons();
   }
 
+  // Mise à jour de la carte selon filtres
   function filterGeoLayer() {
     if (!geoLayer) return;
     const validCPs = getFilteredCPs();
@@ -366,6 +366,7 @@
     });
   }
 
+  // Mise à jour des valeurs distinctes à partir du JSON Excel
   function updateDistinctValues(jsonData) {
     for (const key in distinctValues) {
       distinctValues[key].clear();
@@ -403,6 +404,21 @@
     });
   }
 
+  // Construction initiale des listes de filtres
+  function buildFilterLists() {
+    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
+      buildFilterList(filter, filter + 'List');
+    });
+
+    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filt => {
+      updateSelectAllCheckbox(filt);
+      setupSelectAllListener(filt);
+    });
+
+    setupFilterToggleButtons();
+  }
+
+  // Chargement et conversion fichier Excel
   document.getElementById('convertBtn').onclick = () => {
     const fileInput = document.getElementById('uploadExcel');
     const file = fileInput.files[0];
@@ -426,14 +442,12 @@
         if (cp.length > 0) extraProperties[cp] = item;
       });
 
-      // Initialiser avec tout coché au départ
+      // Initialiser filtres tout coché
       Object.keys(filterState).forEach(key => {
         filterState[key].forEach((_, val) => filterState[key].set(val, true));
       });
 
       buildFilterLists();
-
-      setupFilterToggleButtons();
 
       map.setView([46.6, 2.4], 6);
 
@@ -443,20 +457,7 @@
     reader.readAsArrayBuffer(file);
   };
 
-  function buildFilterLists() {
-    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
-      buildFilterList(filter, filter + 'List');
-    });
-
-    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filt => {
-      updateSelectAllCheckbox(filt);
-      setupSelectAllListener(filt);
-    });
-
-    // Re-relier les boutons toggle pour que les listes puissent s’ouvrir/fermer
-    setupFilterToggleButtons();
-  }
-
+  // Chargement GeoJSON et création couche carte
   function updateMapWithExtraProperties() {
     fetch('contours-codes-postaux.geojson')
       .then(res => {
@@ -506,8 +507,6 @@
         map.setView([46.6, 2.4], 6);
       });
   }
-
-  // Initialiser filtres au chargement
-  function initializeFiltersOnLoad() {
-    ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp'].forEach(filter => {
-      filter
+</script>
+</body>
+</html>
