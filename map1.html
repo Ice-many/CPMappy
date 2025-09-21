@@ -16,6 +16,10 @@
       padding:10px; background:#fff; position: fixed; top:8px; left:8px; z-index: 1000;
       border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
+    /* Style de la tooltip Leaflet pour appliquer la couleur de police */
+    .custom-tooltip {
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -26,7 +30,6 @@
   </div>
   <!-- Carte -->
   <div id="map"></div>
-
   <script>
     var map = L.map('map').setView([46.6, 2.4], 6);
 
@@ -54,23 +57,32 @@
             style: function(feature) {
               let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
               let extras = extraProperties[cp] || {};
-
-       return {
-  fillColor: extras["Fond_couleur"] || "#66cc66",
-  color: extras["Fond_couleur"] || "#66cc66", // même couleur que le fond
-  weight: 1,   // pas de contour
-  opacity: 1,
-  fillOpacity: 0.7
-};
-
+              return {
+                fillColor: extras["Fond_couleur"] || "#66cc66",
+                color: extras["Ligne_couleur"] || extras["Fond_couleur"] || "#66cc66",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.7
+              };
             },
             onEachFeature: function(feature, layer) {
               let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
               let extras = extraProperties[cp] || {};
-              let tooltipText =
-                (extras["Texte1"] ? extras["Texte1"] : "") +
-                (extras["Texte2"] ? "<br>" + extras["Texte2"] : "");
-              layer.bindTooltip(tooltipText || ("Code Postal : " + cp));
+
+              // Concaténer Texte1, Texte2, Texte3, Texte4 séparés par un espace, en ignorant les champs vides ou non définis
+              let texteParts = [];
+              if(extras["Texte1"]) texteParts.push(extras["Texte1"]);
+              if(extras["Texte2"]) texteParts.push(extras["Texte2"]);
+              if(extras["Texte3"]) texteParts.push(extras["Texte3"]);
+              if(extras["Texte4"]) texteParts.push(extras["Texte4"]);
+              let tooltipText = texteParts.join(" ");
+
+              // Créer la tooltip personnalisée avec couleur police si définie
+              layer.bindTooltip(
+                `<span style="color: ${extras["police couleur"] || '#000000'};">${tooltipText || ("Code Postal : " + cp)}</span>`,
+                {className: 'custom-tooltip'}
+              );
+
               if (extras["Clic URL"] && extras["Clic URL"].trim().length > 0) {
                 layer.on("click", function() {
                   window.open(extras["Clic URL"], '_blank');
@@ -114,9 +126,6 @@
       };
       reader.readAsArrayBuffer(file);
     };
-
   </script>
 </body>
 </html>
-
-
