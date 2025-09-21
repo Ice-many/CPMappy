@@ -19,7 +19,7 @@
       user-select: none;
     }
     #sidebar-left, #sidebar-right {
-      background: #000;
+      background: #000; /* fond noir */
       color: white;
       overflow-y: auto;
       padding: 10px;
@@ -49,25 +49,28 @@
       user-select: text;
       color: white;
     }
-    #control-panel {
+    #controls {
+      padding: 10px;
+      background: #111;
       position: sticky;
       top: 0;
-      background: #111;
-      padding: 10px;
-      margin-bottom: 10px;
       z-index: 1000;
       border-bottom: 1px solid #444;
-      color: white;
+      margin-bottom: 10px;
       user-select: none;
+      color: white;
+    }
+    .custom-tooltip {
+      font-weight: bold;
     }
     .selectall-label {
+      font-weight: bold;
+      margin: 0 0 8px 0;
+      cursor: pointer;
+      user-select: none;
+      color: white;
       display: flex;
       align-items: center;
-      margin-bottom: 6px;
-      font-weight: bold;
-      cursor: pointer;
-      color: white;
-      user-select: none;
     }
     .selectall-label input {
       margin-right: 8px;
@@ -81,195 +84,176 @@
       border-radius: 4px;
       cursor: pointer;
       user-select: none;
-      margin: 10px 0 4px;
+      margin: 10px 0 4px 0;
       width: 100%;
       text-align: left;
     }
-    #toggleButtons {
+    #toggleLeftBtn, #toggleRightBtn {
       position: fixed;
       top: 10px;
-      z-index: 1400;
-      width: 280px;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      left: 10px;
-    }
-    #toggleButtons button {
-      flex: 1;
-      padding: 8px 0;
-      border: none;
-      font-weight: bold;
+      padding: 8px 14px;
       font-size: 14px;
-      color: white;
+      border-radius: 4px;
       cursor: pointer;
-      border-radius: 5px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      background-color: #6a0dad;
-      transition: background-color 0.3s ease;
+      z-index: 1300;
       user-select: none;
+      background-color: #6a0dad; /* violet */
+      color: white;
+      box-shadow: 0 2px 8px rgba(106,13,173,0.7);
+      transition: background-color 0.3s ease;
     }
-    #toggleButtons button.active {
+    #toggleLeftBtn.active, #toggleRightBtn.active {
       background-color: #00bfff;
-      box-shadow: 0 2px 6px rgba(0,191,255,0.7);
+      box-shadow: 0 2px 8px rgba(0,191,255,0.7);
     }
-    .hidden {
-      display: none !important;
-    }
+    #toggleLeftBtn { left: 10px; }
+    #toggleRightBtn { right: 10px; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-
-  <div id="toggleButtons">
-    <button id="toggleLeftBtn" title="Afficher/masquer Réseau" class="active">Réseau</button>
-    <button id="toggleRightBtn" title="Afficher/masquer Département" class="active">Département</button>
-  </div>
+  <button id="toggleLeftBtn" title="Afficher/Masquer Réseau">Réseau</button>
+  <button id="toggleRightBtn" title="Afficher/Masquer Département">Département</button>
 
   <div id="sidebar-left">
-    <div id="control-panel">
+    <div id="controls">
       <input type="file" id="uploadExcel" accept=".xlsx" />
       <button id="convertBtn">Conversion et Affichage</button>
     </div>
 
     <button class="toggle-btn" data-target="agence">Agence</button>
-    <div id="filter-agence" class="hidden"></div>
+    <div id="filter-agence" class="hidden">
+      <label class="selectall-label"><input type="checkbox" id="agence-select-all" /> Tout</label>
+      <div id="agenceList"></div>
+    </div>
 
     <button class="toggle-btn" data-target="region">Région</button>
-    <div id="filter-region" class="hidden"></div>
+    <div id="filter-region" class="hidden">
+      <label class="selectall-label"><input type="checkbox" id="region-select-all" /> Tout</label>
+      <div id="regionList"></div>
+    </div>
 
     <button class="toggle-btn" data-target="antenne">Antenne</button>
-    <div id="filter-antenne" class="hidden"></div>
+    <div id="filter-antenne" class="hidden">
+      <label class="selectall-label"><input type="checkbox" id="antenne-select-all" /> Tout</label>
+      <div id="antenneList"></div>
+    </div>
 
     <button class="toggle-btn" data-target="dsp">DSP</button>
-    <div id="filter-dsp" class="hidden"></div>
-  </div>
-
-  <div id="sidebar-right">
-    <button class="toggle-btn" data-target="departement">Département</button>
-    <div id="filter-departement" class="hidden"></div>
-
-    <button class="toggle-btn" data-target="texte2">Texte2</button>
-    <div id="filter-texte2" class="hidden"></div>
+    <div id="filter-dsp" class="hidden">
+      <label class="selectall-label"><input type="checkbox" id="dsp-select-all" /> Tout</label>
+      <div id="dspList"></div>
+    </div>
   </div>
 
   <div id="map"></div>
 
-<script>
-  let map = L.map("map", { zoom: 6, minZoom: 6, center: [46.6, 2.4] });
+  <div id="sidebar-right">
+    <button class="toggle-btn" data-target="departement">Département</button>
+    <div id="filter-departement" class="hidden">
+      <label class="selectall-label"><input type="checkbox" id="departement-select-all" /> Tout</label>
+      <div id="departementList"></div>
+    </div>
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 18,
-    attribution: "© OpenStreetMap contributors",
+    <button class="toggle-btn" data-target="texte2">Texte2</button>
+    <div id="filter-texte2" class="hidden">
+      <label class="selectall-label"><input type="checkbox" id="texte2-select-all" /> Tout</label>
+      <div id="texte2List"></div>
+    </div>
+  </div>
+
+<script>
+  var map = L.map('map', { minZoom: 6, center: [46.5, 2.5], zoom: 6 });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
-  let geojsonLayer = null;
   let extraProperties = {};
+  let geoLayer;
 
-  const distinctFields = ["agence", "region", "antenne", "dsp", "departement", "texte2"];
-  const distinctValues = {
+  let distinctValues = {
     agence: new Map(),
     region: new Map(),
     antenne: new Map(),
     dsp: new Map(),
     departement: new Map(),
-    texte2: new Map(),
+    texte2: new Map()
   };
-  const filterState = {
+
+  let filterState = {
     agence: new Map(),
     region: new Map(),
     antenne: new Map(),
     dsp: new Map(),
     departement: new Map(),
-    texte2: new Map(),
+    texte2: new Map()
   };
 
-  function getFieldValueCI(obj, key) {
+  function getValueCaseInsensitive(obj, key) {
     if (!obj) return "";
-    key = key.toLowerCase().replace(/\s+/g, "");
+    key = key.toLowerCase().replace(/\s+/g, '');
     for (let k in obj) {
-      if (k.toLowerCase().replace(/\s+/g, "") === key) return obj[k];
+      if (k.toLowerCase().replace(/\s+/g, '') === key)
+        return obj[k];
     }
     return "";
   }
 
-  function buildFilterList(field, containerId) {
+  function buildFilterList(filterName, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = "";
+    const mapvals = distinctValues[filterName];
+    if (!mapvals) return;
 
-    const values = distinctValues[field];
-    if (!values) return;
-
-    let sortedVals = Array.from(values.keys()).sort((a, b) =>
-      a.localeCompare(b, undefined, { ignorePunctuation: true })
-    );
-
-    // 'Select All' checkbox creation
-    const selectAllId = `${field}-select-all`;
-    let selectAllContainer = document.createElement("div");
-    selectAllContainer.className = "selectall-label";
-
-    let selectAllCheckbox = document.getElementById(selectAllId);
-    if (!selectAllCheckbox) {
-      selectAllCheckbox = document.createElement("input");
-      selectAllCheckbox.type = "checkbox";
-      selectAllCheckbox.id = selectAllId;
-      selectAllCheckbox.checked = true;
-      selectAllContainer.appendChild(selectAllCheckbox);
-      selectAllContainer.appendChild(document.createTextNode(` Tout ${field.charAt(0).toUpperCase() + field.slice(1)}`));
-      container.appendChild(selectAllContainer);
-    }
-
-    selectAllCheckbox.addEventListener("change", () => {
-      const checked = selectAllCheckbox.checked;
-      filterState[field] = new Map([...distinctValues[field].keys()].map((v) => [v, checked]));
-      updateFilterCheckboxes(field, checked);
-      filterMap();
-    });
-
-    // Build individual checkboxes
-    sortedVals.forEach((val) => {
-      let label = document.createElement("label");
-      label.title = `${values.get(val).size} codes postaux`;
-
-      let checkbox = document.createElement("input");
+    const vals = Array.from(mapvals.keys());
+    vals.sort((a,b) => a.localeCompare(b,undefined,{ignorePunctuation:true}));
+    vals.forEach(val => {
+      const setCP = mapvals.get(val);
+      const label = document.createElement("label");
+      label.className = "filter-option";
+      label.title = `${setCP.size} codes postaux`;
+      const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = true;
-
-      filterState[field].set(val, true);
-
+      filterState[filterName].set(val,true);
       checkbox.addEventListener("change", () => {
-        filterState[field].set(val, checkbox.checked);
-        updateSelectAllCheckbox(field);
+        filterState[filterName].set(val, checkbox.checked);
+        updateSelectAll(filterName);
         filterMap();
       });
-
       label.appendChild(checkbox);
       label.appendChild(document.createTextNode(" " + val));
       container.appendChild(label);
     });
   }
 
-  function updateFilterCheckboxes(field, state) {
-    const container = document.getElementById(`${field}List`);
-    if (!container) return;
-    const checkboxes = container.querySelectorAll("input[type='checkbox']");
-    checkboxes.forEach((cb) => {
-      cb.checked = state;
-    });
-    updateSelectAllCheckbox(field);
-  }
-
-  function updateSelectAllCheckbox(field) {
-    const selectAll = document.getElementById(`${field}-select-all`);
+  function updateSelectAll(filterName) {
+    const selectAll = document.getElementById(filterName + "-select-all");
     if (!selectAll) return;
-    const vals = Array.from(filterState[field].values());
-    const allChecked = vals.length > 0 && vals.every((v) => v === true);
+    const vals = Array.from(filterState[filterName].values());
+    const allChecked = vals.length > 0 && vals.every(v => v === true);
     selectAll.checked = allChecked;
-    selectAll.indeterminate = !allChecked && vals.some((v) => v === true);
+    selectAll.indeterminate = !allChecked && vals.some(v => v === true);
   }
 
-  function setupFilterToggles() {
-    document.querySelectorAll(".toggle-btn").forEach((btn) => {
+  function setupSelectAllListener(filterName) {
+    const selectAll = document.getElementById(filterName + "-select-all");
+    if (!selectAll) return;
+    selectAll.addEventListener("change", () => {
+      const checked = selectAll.checked;
+      filterState[filterName].forEach((_, key) => filterState[filterName].set(key, checked));
+      const container = document.getElementById(filterName + "List");
+      if (container) {
+        container.querySelectorAll("input[type=checkbox]").forEach(cb => cb.checked = checked);
+      }
+      filterMap();
+    });
+  }
+
+  function setupToggleButtons() {
+    document.querySelectorAll(".toggle-btn").forEach(btn => {
       const target = btn.getAttribute("data-target");
       btn.textContent = target.charAt(0).toUpperCase() + target.slice(1);
       btn.addEventListener("click", () => {
@@ -286,173 +270,298 @@
     });
   }
 
-  // Toggle sidebars & update button styles
-  const leftBtn = document.getElementById("toggleLeftBtn");
-  const rightBtn = document.getElementById("toggleRightBtn");
-  const sidebarLeft = document.getElementById("sidebar-left");
-  const sidebarRight = document.getElementById("sidebar-right");
-
-  leftBtn.addEventListener("click", function () {
-    if (sidebarLeft.style.display === "none") {
-      sidebarLeft.style.display = "block";
-      this.classList.remove("active");
+  document.getElementById("toggleLeftBtn").addEventListener("click", function(){
+    const sidebar = document.getElementById("sidebar-left");
+    const btn = this;
+    if(sidebar.style.display === "none"){
+      sidebar.style.display = "block";
+      btn.classList.remove("active");
+      btn.style.backgroundColor = "#6a0dad";
+      btn.style.boxShadow = "0 2px 8px rgba(106,13,173,0.7)";
     } else {
-      sidebarLeft.style.display = "none";
-      this.classList.add("active");
+      sidebar.style.display = "none";
+      btn.classList.add("active");
+      btn.style.backgroundColor = "#00bfff";
+      btn.style.boxShadow = "0 2px 8px rgba(0,191,255,0.7)";
     }
   });
 
-  rightBtn.addEventListener("click", function () {
-    if (sidebarRight.style.display === "none") {
-      sidebarRight.style.display = "block";
-      this.classList.remove("active");
+  document.getElementById("toggleRightBtn").addEventListener("click", function(){
+    const sidebar = document.getElementById("sidebar-right");
+    const btn = this;
+    if(sidebar.style.display === "none"){
+      sidebar.style.display = "block";
+      btn.classList.remove("active");
+      btn.style.backgroundColor = "#6a0dad";
+      btn.style.boxShadow = "0 2px 8px rgba(106,13,173,0.7)";
     } else {
-      sidebarRight.style.display = "none";
-      this.classList.add("active");
+      sidebar.style.display = "none";
+      btn.classList.add("active");
+      btn.style.backgroundColor = "#00bfff";
+      btn.style.boxShadow = "0 2px 8px rgba(0,191,255,0.7)";
     }
   });
 
-  function filterMap() {
-    if (!geojsonLayer) return;
-    geojsonLayer.eachLayer((layer) => {
-      const cp =
-        layer.feature.properties.code_postal ||
-        layer.feature.properties.codePostal ||
-        layer.feature.properties.code ||
-        "";
-      const props = extraProperties[cp];
-
-      if (!props) {
-        if (layer._map) layer.remove();
+  function filterMap(){
+    if (!geoLayer) return;
+    geoLayer.eachLayer(layer => {
+      const cp = layer.feature.properties.code_postal || layer.feature.properties.codePostal || layer.feature.properties.code || "";
+      const extras = extraProperties[cp];
+      if(!extras){
+        if(layer._map) layer.remove();
         return;
       }
+      const valAgence = getValueCaseInsensitive(extras,"Agence");
+      const valRegion = getValueCaseInsensitive(extras,"région");
+      const valAntenne = getValueCaseInsensitive(extras,"Antenne");
+      const valDepartement = getValueCaseInsensitive(extras,"Departement");
+      const valTexte2 = getValueCaseInsensitive(extras,"Texte2");
+      
+      let visible = true;
+      visible = visible && (filterState.agence.get(valAgence) !== false);
+      visible = visible && (filterState.region.get(valRegion) !== false);
+      visible = visible && (filterState.antenne.get(valAntenne) !== false);
+      visible = visible && (filterState.departement.get(valDepartement) !== false);
+      visible = visible && (filterState.texte2.get(valTexte2) !== false);
 
-      const valAgence = getFieldValueCI(props, "agence");
-      const valRegion = getFieldValueCI(props, "region");
-      const valAntenne = getFieldValueCI(props, "antenne");
-      const valDSP = getFieldValueCI(props, "dsp");
-      const valDepartement = getFieldValueCI(props, "departement");
-      const valTexte2 = getFieldValueCI(props, "texte2");
-
-      let visible =
-        filterState.agence.get(valAgence) !== false &&
-        filterState.region.get(valRegion) !== false &&
-        filterState.antenne.get(valAntenne) !== false &&
-        filterState.dsp.get(valDSP) !== false &&
-        filterState.departement.get(valDepartement) !== false &&
-        filterState.texte2.get(valTexte2) !== false;
-
-      if (visible) {
-        if (!layer._map) layer.addTo(map);
+      if(visible){
+        if(!layer._map) layer.addTo(map);
       } else {
-        if (layer._map) layer.remove();
+        if(layer._map) layer.remove();
       }
     });
   }
 
-  document.getElementById("convertBtn").addEventListener("click", () => {
-    const fileInput = document.getElementById("uploadExcel");
-    if (fileInput.files.length === 0) {
-      alert("Veuillez sélectionner un fichier Excel");
+  function getValueCaseInsensitive(obj,key){
+    if(!obj) return "";
+    key = key.toLowerCase().replace(/\s+/g,"");
+    for(let k in obj){
+      if(k.toLowerCase().replace(/\s+/g,"") === key)
+        return obj[k];
+    }
+    return "";
+  }
+
+  function updateDistinctFilters(data){
+    Object.keys(distinctValues).forEach(k=>{
+      distinctValues[k].clear();
+      filterState[k].clear();
+    });
+    data.forEach(item=>{
+      const cp = (item["Code Postal"] || "").toString();
+      if(!cp) return;
+      const ag = getValueCaseInsensitive(item,"Agence");
+      const re = getValueCaseInsensitive(item,"région");
+      const an = getValueCaseInsensitive(item,"Antenne");
+      const dep = getValueCaseInsensitive(item,"Departement");
+      const t2 = getValueCaseInsensitive(item,"Texte2");
+
+      if(ag) distinctValues.agence.set(ag,(distinctValues.agence.get(ag) || new Set()).add(cp));
+      if(re) distinctValues.region.set(re,(distinctValues.region.get(re) || new Set()).add(cp));
+      if(an) distinctValues.antenne.set(an,(distinctValues.antenne.get(an) || new Set()).add(cp));
+      if(dep) distinctValues.departement.set(dep,(distinctValues.departement.get(dep) || new Set()).add(cp));
+      if(t2) distinctValues.texte2.set(t2,(distinctValues.texte2.get(t2) || new Set()).add(cp));
+    });
+  }
+
+  function buildFilters(){
+    Object.keys(distinctValues).forEach(key=>{
+      buildFilterList(key,key+"List");
+      updateSelectAll(key);
+      setupSelectAllListener(key);
+    });
+  }
+
+  function buildFilterList(filterName,containerId){
+    const container = document.getElementById(containerId);
+    container.innerHTML="";
+    const vals = distinctValues[filterName];
+    if(!vals) return;
+    const keys = Array.from(vals.keys()).sort((a,b)=>a.localeCompare(b));
+    keys.forEach(k=>{
+      const setValues = vals.get(k);
+      const label = document.createElement('label');
+      label.title=`${setValues.size} codes postaux`;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = true;
+      filterState[filterName].set(k,true);
+      cb.addEventListener('change',()=> {
+        filterState[filterName].set(k,cb.checked);
+        updateSelectAll(filterName);
+        filterMap();
+      });
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(" "+k));
+      container.appendChild(label);
+    })
+  }
+
+  document.getElementById('toggleLeftBtn').addEventListener('click',function(){
+    const sidebar = document.getElementById('sidebar-left');
+    const btn=this;
+    if(sidebar.style.display==='none'){
+      sidebar.style.display='block';
+      btn.classList.remove('active');
+      btn.style.backgroundColor='#6a0dad';
+      btn.style.boxShadow='0 2px 8px rgba(106,13,173,0.7)';
+    } else {
+      sidebar.style.display='none';
+      btn.classList.add('active');
+      btn.style.backgroundColor='#00bfff';
+      btn.style.boxShadow='0 2px 8px rgba(0,191,255,0.7)';
+    }
+  });
+
+  document.getElementById('toggleRightBtn').addEventListener('click',function(){
+    const sidebar=document.getElementById('sidebar-right');
+    const btn=this;
+    if(sidebar.style.display==='none'){
+      sidebar.style.display='block';
+      btn.classList.remove('active');
+      btn.style.backgroundColor='#6a0dad';
+      btn.style.boxShadow='0 2px 8px rgba(106,13,173,0.7)';
+    } else {
+      sidebar.style.display='none';
+      btn.classList.add('active');
+      btn.style.backgroundColor='#00bfff';
+      btn.style.boxShadow='0 2px 8px rgba(0,191,255,0.7)';
+    }
+  });
+
+  function setupToggleButtons(){
+    document.querySelectorAll('.toggle-btn').forEach(btn=>{
+      const target=btn.getAttribute('data-target');
+      btn.textContent=target.charAt(0).toUpperCase()+target.slice(1);
+      btn.addEventListener('click',()=>{
+        const filterDiv=document.getElementById('filter-'+target);
+        if(!filterDiv) return;
+        if(filterDiv.classList.contains('hidden')){
+          filterDiv.classList.remove('hidden');
+          btn.textContent='Masquer '+target.charAt(0).toUpperCase()+target.slice(1);
+        } else {
+          filterDiv.classList.add('hidden');
+          btn.textContent=target.charAt(0).toUpperCase()+target.slice(1);
+        }
+      })
+    });
+  }
+
+  document.getElementById('convertBtn').addEventListener('click',function(){
+    const fileInput=document.getElementById('uploadExcel');
+    if(fileInput.files.length ===0){
+      alert('Veuillez sélectionner un fichier Excel (.xlsx).');
       return;
     }
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const data=new Uint8Array(e.target.result);
+      const workbook=XLSX.read(data,{type:'array'});
+      const firstSheet=workbook.SheetNames[0];
+      const json=XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const json = XLSX.utils.sheet_to_json(sheet);
-
-      extraProperties = {};
-
-      // Initialize Distinct objects again:
-      distinctFields.forEach((field) => {
-        distinctValues[field] = new Map();
-        filterState[field] = new Map();
+      extraProperties={};
+      json.forEach(item=>{
+        const cp=(item['Code Postal'] || '').toString();
+        if(cp) extraProperties[cp]=item;
       });
 
-      json.forEach((item) => {
-        const cp = (item["Code Postal"] || "").toString();
-        if (!cp) return;
+      // Ajout DSP dans distinctValues et filterState si non existants
+      if(!('dsp' in distinctValues)){
+        distinctValues['dsp']=new Map();
+      }
+      if(!('dsp' in filterState)){
+        filterState['dsp']=new Map();
+      }
 
-        // Store full row
-        extraProperties[cp] = item;
+      // Remplissage des distinct values y compris DSP
+      distinctValues = {
+        agence: new Map(),
+        region: new Map(),
+        antenne: new Map(),
+        dsp: new Map(),
+        departement: new Map(),
+        texte2: new Map()
+      };
 
-        distinctFields.forEach((field) => {
-          const val = getFieldValueCI(item, field);
-          if (val) {
-            if (!distinctValues[field].has(val)) distinctValues[field].set(val, new Set());
-            distinctValues[field].get(val).add(cp);
+      json.forEach(row=>{
+        const cp=(row['Code Postal'] || '').toString();
+        if(!cp) return;
+        const ag = getValueCaseInsensitive(row,'Agence');
+        const rg = getValueCaseInsensitive(row,'région');
+        const an = getValueCaseInsensitive(row,'Antenne');
+        const dsp = getValueCaseInsensitive(row,'DSP');
+        const dep = getValueCaseInsensitive(row,'Departement');
+        const t2 = getValueCaseInsensitive(row,'Texte2');
+
+        if(ag) {
+          if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag,new Set());
+          distinctValues.agence.get(ag).add(cp);
+        }
+        if(rg){
+          if(!distinctValues.region.has(rg)) distinctValues.region.set(rg,new Set());
+          distinctValues.region.get(rg).add(cp);
+        }
+        if(an){
+          if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an,new Set());
+          distinctValues.antenne.get(an).add(cp);
+        }
+        if(dsp){
+          if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp,new Set());
+          distinctValues.dsp.get(dsp).add(cp);
+        }
+        if(dep){
+          if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set());
+          distinctValues.departement.get(dep).add(cp);
+        }
+        if(t2){
+          if(!distinctValues.texte2.has(t2)) distinctValues.texte2.set(t2,new Set());
+          distinctValues.texte2.get(t2).add(cp);
+        }
+      });
+
+      buildFilters();
+      setupToggleButtons();
+      map.setView([46.5,2.5],6);
+
+      fetch('contours.geojson').then(resp=>resp.json()).then(data=>{
+        if(geoLayer) geoLayer.remove();
+        geoLayer=L.geoJSON(data,{
+          style:function(f){
+            const cp=f.properties.code_postal || f.properties.codePostal || f.properties.code || '';
+            const e=extraProperties[cp];
+            return {
+              fillColor:(e ? e['DSP_Couleur'] || '#6688CC' : '#6688CC'),
+              color:(e ? e['Ligne_Couleur'] || '#000' : '#000'),
+              weight:1,
+              opacity:1,
+              fillOpacity:0.7
+            }
+          },
+          onEachFeature:function(f,l){
+            const cp=f.properties.code_postal || f.properties.codePostal || f.properties.code || '';
+            const e=extraProperties[cp];
+            if(!e) return;
+            const texts=[];
+            for(let i=1;i<=4;i++){
+              if(e[`Texte${i}`]) texts.push(e[`Texte${i}`]);
+            }
+            const color=e['Police_Couleur']||'#000';
+            l.bindTooltip(`<span style="color:${color}">${texts.join(' ')}</span>`);
+            if(e['Clic_URL']){
+              l.on('click',()=>window.open(e['Clic_URL'],'_blank'));
+              l.setStyle({cursor:'pointer'});
+            }
           }
-        });
+        }).addTo(map);
+        filterMap();
+      }).catch(e=>{
+        alert('Erreur chargement geojson');
+        console.error(e);
+        map.setView([46.5,2.5],6);
       });
 
-      // Build all filters and setup
-      populateFilters();
-      setupFilterToggles();
-
-      map.setView([46.6, 2.4], 6);
-
-      // Load GeoJSON and draw polygons
-      fetch("contours.geojson")
-        .then((res) => {
-          if (!res.ok) throw new Error("Erreur chargement GeoJSON");
-          return res.json();
-        })
-        .then((geojson) => {
-          if (geojsonLayer) geojsonLayer.remove();
-
-          geojsonLayer = L.geoJSON(geojson, {
-            style: (feature) => {
-              const cp =
-                feature.properties.code_postal ||
-                feature.properties.codePostal ||
-                feature.properties.code ||
-                "";
-              const p = extraProperties[cp] || {};
-              return {
-                fillColor: p.DSP_Couleur || "#6688CC",
-                color: p.Ligne_Couleur || "#000000",
-                weight: 1,
-                opacity: 1,
-                fillOpacity: 0.7,
-              };
-            },
-            onEachFeature: (feature, layer) => {
-              const cp =
-                feature.properties.code_postal ||
-                feature.properties.codePostal ||
-                feature.properties.code ||
-                "";
-              const p = extraProperties[cp];
-              if (!p) return;
-              const tooltipText = [p.Texte1, p.Texte2, p.Texte3, p.Texte4]
-                .filter(Boolean)
-                .join(" ");
-              const color = p["Police couleur"] || "#000000";
-              layer.bindTooltip(
-                `<span style="color: ${color}">${tooltipText}</span>`
-              );
-              if (p.Clic_URL) {
-                layer.on("click", () => window.open(p.Clic_URL, "_blank"));
-                layer.setStyle({ cursor: "pointer" });
-              }
-            },
-          }).addTo(map);
-
-          filterMap();
-        })
-        .catch((e) => {
-          alert(e.message);
-          console.error(e);
-          map.setView([46.6, 2.4], 6);
-        });
-
-      alert("Conversion et affichage réalisés !");
+      alert('Conversion et affichage réalisés !');
     };
-
     reader.readAsArrayBuffer(fileInput.files[0]);
   });
 </script>
