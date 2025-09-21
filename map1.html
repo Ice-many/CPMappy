@@ -16,33 +16,37 @@
       padding:10px; background:#fff; position: fixed; top:8px; left:8px; z-index: 1000;
       border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
-    /* Style de la tooltip Leaflet pour appliquer la couleur de police */
+    /* Style tooltip personnalisée */
     .custom-tooltip {
       font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <!-- Barre de contrôle -->
   <div id="controls">
     <input type="file" id="uploadExcel" accept=".xlsx" />
     <button id="convertBtn">Conversion JSON et Affichage</button>
   </div>
-  <!-- Carte -->
   <div id="map"></div>
   <script>
     var map = L.map('map').setView([46.6, 2.4], 6);
 
-    // Fond cartographique OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Dictionnaire des propriétés Excel à appliquer
     let extraProperties = {};
 
-    // Fonction pour afficher la couche GeoJSON avec les propriétés dynamiques
+    // Fonction pour récupérer une clé dans l’objet avec tolérance de casse et espaces
+    function getKeyIgnoreCase(obj, key) {
+      key = key.toLowerCase().replace(/\s+/g, '');
+      for (const k in obj) {
+        if (k.toLowerCase().replace(/\s+/g, '') === key) return obj[k];
+      }
+      return null;
+    }
+
     function updateMapWithExtraProperties() {
       fetch('contours-codes-postaux.geojson')
         .then(res => {
@@ -50,16 +54,16 @@
           return res.json();
         })
         .then(data => {
-          // Supprimer ancienne couche si présente
           if (window.geoLayer) map.removeLayer(window.geoLayer);
 
           window.geoLayer = L.geoJSON(data, {
             style: function(feature) {
               let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
               let extras = extraProperties[cp] || {};
+
               return {
-                fillColor: extras["Fond_couleur"] || "#66cc66",
-                color: extras["Ligne_couleur"] || extras["Fond_couleur"] || "#66cc66",
+                fillColor: getKeyIgnoreCase(extras, "Fond_couleur") || "#66cc66",
+                color: getKeyIgnoreCase(extras, "Ligne_couleur") || "#000000",
                 weight: 1,
                 opacity: 1,
                 fillOpacity: 0.7
@@ -69,30 +73,32 @@
               let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
               let extras = extraProperties[cp] || {};
 
-              // Concaténer Texte1, Texte2, Texte3, Texte4 séparés par un espace, en ignorant les champs vides ou non définis
               let texteParts = [];
-              if(extras["Texte1"]) texteParts.push(extras["Texte1"]);
-              if(extras["Texte2"]) texteParts.push(extras["Texte2"]);
-              if(extras["Texte3"]) texteParts.push(extras["Texte3"]);
-              if(extras["Texte4"]) texteParts.push(extras["Texte4"]);
+              ["Texte1", "Texte2", "Texte3", "Texte4"].forEach(field => {
+                let val = getKeyIgnoreCase(extras, field);
+                if (val) texteParts.push(val);
+              });
+
               let tooltipText = texteParts.join(" ");
 
-              // Créer la tooltip personnalisée avec couleur police si définie
+              let policeCouleur = getKeyIgnoreCase(extras, "police couleur") || '#000000';
+
               layer.bindTooltip(
-                `<span style="color: ${extras["police couleur"] || '#000000'};">${tooltipText || ("Code Postal : " + cp)}</span>`,
+                `<span style="color: ${policeCouleur};">${tooltipText || ("Code Postal : " + cp)}</span>`,
                 {className: 'custom-tooltip'}
               );
 
-              if (extras["Clic URL"] && extras["Clic URL"].trim().length > 0) {
+              let clicUrl = getKeyIgnoreCase(extras, "Clic URL");
+              if (clicUrl && clicUrl.trim().length > 0) {
                 layer.on("click", function() {
-                  window.open(extras["Clic URL"], '_blank');
+                  window.open(clicUrl, '_blank');
                 });
                 layer.setStyle({ cursor: "pointer" });
               }
             }
           }).addTo(map);
 
-          map.fitBounds(window.geoLayer.getBounds()); // centrage auto sur les polygones
+          map.fitBounds(window.geoLayer.getBounds());
         })
         .catch(err => {
           alert(err.message);
@@ -100,7 +106,6 @@
         });
     }
 
-    // Evénement sur le bouton : conversion Excel > JSON et affichage
     document.getElementById('convertBtn').onclick = function() {
       let fileInput = document.getElementById('uploadExcel');
       let file = fileInput.files[0];
@@ -115,10 +120,9 @@
         var firstSheetName = workbook.SheetNames[0];
         var sheet = workbook.Sheets[firstSheetName];
         var jsonData = XLSX.utils.sheet_to_json(sheet);
-        // Remplir extraProperties
         extraProperties = {};
         jsonData.forEach(function(item) {
-          let cp = (item["Code Postal"]||"").toString();
+          let cp = (item["Code Postal"] || "").toString();
           if (cp.length > 0) extraProperties[cp] = item;
         });
         updateMapWithExtraProperties();
