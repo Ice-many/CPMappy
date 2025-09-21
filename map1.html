@@ -306,6 +306,7 @@
       });
     }
 
+    // Gestion des boutons toggle pour afficher/masquer les listes
     document.querySelectorAll('.toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const targetId = btn.getAttribute('data-target');
@@ -321,14 +322,14 @@
       });
     });
 
+    // Boutons Réseau et Département pour afficher/masquer les sidebars gauche et droite
     document.getElementById('toggleLeftBtn').addEventListener('click', () => {
       const left = document.getElementById('sidebar-left');
-      left.style.display = left.style.display === 'none' ? 'block' : 'none';
+      left.style.display = (left.style.display === 'none') ? 'block' : 'none';
     });
-
     document.getElementById('toggleRightBtn').addEventListener('click', () => {
       const right = document.getElementById('sidebar-right');
-      right.style.display = right.style.display === 'none' ? 'block' : 'none';
+      right.style.display = (right.style.display === 'none') ? 'block' : 'none';
     });
 
     function updateMapWithExtraProperties() {
@@ -378,19 +379,14 @@
             }
           }).addTo(map);
 
-          // Centre sur France ou étend la vue selon données
-          const bounds = geoLayer.getBounds();
-          if (bounds.isValid()) {
-            map.fitBounds(bounds);
-          } else {
-            map.setView([46.6, 2.4], 6);
-          }
+          // On ne centre pas encore ici ! centrage forcé après conversion du fichier
+
           filterGeoLayer();
         })
         .catch(err => {
           alert(err.message);
           console.error(err);
-          map.setView([46.6, 2.4], 6);
+          map.setView([46.6, 2.4], 6); // fallback
         });
     }
 
@@ -418,6 +414,10 @@
         });
 
         buildFilterLists();
+
+        // Forcer le centrage sur la France dès le chargement du fichier
+        map.setView([46.6, 2.4], 6);
+
         updateMapWithExtraProperties();
         alert("Conversion et affichage réalisés !");
       };
