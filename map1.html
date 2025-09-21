@@ -10,63 +10,67 @@
   <!-- Librairie SheetJS pour lire Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    body { margin:0; padding:0; }
-    #map { height: 90vh; width: 100vw; }
+    body { margin:0; padding:0; display: flex; height: 100vh; overflow: hidden; }
+    #sidebar {
+      width: 250px;
+      background: #f7f7f7;
+      overflow-y: auto;
+      padding: 10px;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    #sidebar h2 {
+      margin-top: 0;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    #sidebar label {
+      display: block;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    #map {
+      flex-grow: 1;
+      height: 100vh;
+    }
     #controls {
-      padding:10px; background:#fff; position: fixed; top:8px; left:8px; z-index: 1000;
-      border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      padding:10px;
+      background:#fff;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 10px;
     }
     /* Style tooltip personnalisée */
     .custom-tooltip {
       font-weight: bold;
     }
-    /* Contrôle zoom avec affichage de valeur */
-    .leaflet-control-zoom-level {
-      background: #fff;
-      padding: 6px 10px;
-      font-size: 14px;
-      font-family: Arial, sans-serif;
-      color: #333;
-    }
   </style>
 </head>
 <body>
-  <div id="controls">
-    <input type="file" id="uploadExcel" accept=".xlsx" />
-    <button id="convertBtn">Conversion JSON et Affichage</button>
+  <div id="sidebar">
+    <div id="controls">
+      <input type="file" id="uploadExcel" accept=".xlsx" />
+      <button id="convertBtn">Conversion JSON et Affichage</button>
+    </div>
+    <h2>Filtres Agence</h2>
+    <div id="agenceList">Veuillez charger un fichier Excel.</div>
   </div>
   <div id="map"></div>
   <script>
-    // Initialisation de la carte avec minZoom fixé à 5
-    var map = L.map('map', { minZoom: 5 }).setView([46.6, 2.4], 5);
+    var map = L.map('map', { minZoom: 6 }).setView([46.6, 2.4], 6);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Contrôle personnalisé affichant la valeur du zoom
-    var ZoomLevelControl = L.Control.extend({
-      onAdd: function(map) {
-        var container = L.DomUtil.create('div', 'leaflet-control-zoom-level');
-        container.innerHTML = 'Zoom: ' + map.getZoom();
-        this._container = container;
-        return container;
-      },
-      updateZoom: function(zoom) {
-        this._container.innerHTML = 'Zoom: ' + zoom;
-      }
-    });
-
-    var zoomLevelControl = new ZoomLevelControl({ position: 'topleft' });
-    zoomLevelControl.addTo(map);
-
-    // Mettre à jour la valeur de zoom à chaque changement
-    map.on('zoomend', function() {
-      zoomLevelControl.updateZoom(map.getZoom());
-    });
-
     let extraProperties = {};
+    let agenceMap = new Map(); // Map des agences -> Set des codes postaux
+    let agenceChecked = new Map(); // Etat des cases cochées
+    let geoLayer;
 
     function getKeyIgnoreCase(obj, key) {
       key = key.toLowerCase().replace(/\s+/g, '');
@@ -76,6 +80,57 @@
       return null;
     }
 
+    // Met à jour la liste des agences dans la sidebar avec cases à cocher
+    function buildAgenceList() {
+      const container = document.getElementById('agenceList');
+      container.innerHTML = '';
+
+      agenceMap.forEach((cpSet, agence) => {
+        // Crée une checkbox par agence, cochée par défaut
+        const label = document.createElement('label');
+        label.title = `${cpSet.size} codes postaux`;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        agenceChecked.set(agence, true);
+
+        checkbox.addEventListener('change', () => {
+          agenceChecked.set(agence, checkbox.checked);
+          filterGeoLayer();
+        });
+
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(' ' + agence));
+        container.appendChild(label);
+      });
+
+      if (agenceMap.size === 0) {
+        container.textContent = "Aucune agence trouvée dans le fichier.";
+      }
+    }
+
+    // Appliquer filtrage sur la couche GeoJSON en fonction des agences cochées
+    function filterGeoLayer() {
+      if (!geoLayer) return;
+      geoLayer.eachLayer(layer => {
+        let cp = layer.feature.properties.code_postal || layer.feature.properties.codePostal || layer.feature.properties.code || "";
+        // Trouver agence du code postal
+        let agence = null;
+        for (let [ag, cpSet] of agenceMap) {
+          if (cpSet.has(cp)) {
+            agence = ag;
+            break;
+          }
+        }
+        if (agence && agenceChecked.get(agence)) {
+          layer.addTo(map);
+        } else {
+          map.removeLayer(layer);
+        }
+      });
+    }
+
     function updateMapWithExtraProperties() {
       fetch('contours-codes-postaux.geojson')
         .then(res => {
@@ -83,13 +138,12 @@
           return res.json();
         })
         .then(data => {
-          if (window.geoLayer) map.removeLayer(window.geoLayer);
+          if (geoLayer) map.removeLayer(geoLayer);
 
-          window.geoLayer = L.geoJSON(data, {
+          geoLayer = L.geoJSON(data, {
             style: function(feature) {
               let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
               let extras = extraProperties[cp] || {};
-
               return {
                 fillColor: getKeyIgnoreCase(extras, "Fond_couleur") || "#66cc66",
                 color: getKeyIgnoreCase(extras, "Ligne_couleur") || "#000000",
@@ -109,7 +163,6 @@
               });
 
               let tooltipText = texteParts.join(" ");
-
               let policeCouleur = getKeyIgnoreCase(extras, "police couleur") || '#000000';
 
               layer.bindTooltip(
@@ -127,7 +180,8 @@
             }
           }).addTo(map);
 
-          map.fitBounds(window.geoLayer.getBounds());
+          map.fitBounds(geoLayer.getBounds());
+          filterGeoLayer(); // appliquer filtre dès le chargement
         })
         .catch(err => {
           alert(err.message);
@@ -149,11 +203,24 @@
         var firstSheetName = workbook.SheetNames[0];
         var sheet = workbook.Sheets[firstSheetName];
         var jsonData = XLSX.utils.sheet_to_json(sheet);
+
         extraProperties = {};
+        agenceMap.clear();
+
         jsonData.forEach(function(item) {
+          // Propriétés pour la carte
           let cp = (item["Code Postal"] || "").toString();
           if (cp.length > 0) extraProperties[cp] = item;
+
+          // Récupération agences et associer codes postaux
+          let agenceName = item["Agence"] || "Sans agence";
+          if (!agenceMap.has(agenceName)) {
+            agenceMap.set(agenceName, new Set());
+          }
+          agenceMap.get(agenceName).add(cp);
         });
+
+        buildAgenceList();
         updateMapWithExtraProperties();
         alert("Conversion et affichage réalisés !");
       };
@@ -162,4 +229,3 @@
   </script>
 </body>
 </html>
-
