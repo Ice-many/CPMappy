@@ -129,9 +129,8 @@ function updateDynamicFilterLists() {
       label.title=`${distinctValues[f].get(val).size} codes postaux`;
       const cbox=document.createElement('input');
       cbox.type='checkbox';
-      let isAllowed = compatible[f].has(val);
-      cbox.checked = isAllowed && filterState[f].get(val)!==false;
-      cbox.disabled = !isAllowed;
+      cbox.checked = filterState[f].get(val)!==false; 
+      cbox.disabled = !compatible[f].has(val);
       cbox.addEventListener('change',()=>{
         filterState[f].set(val,cbox.checked);
         updateDynamicFilterLists(); filterGeoLayer();
