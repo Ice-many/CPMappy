@@ -98,19 +98,36 @@ let filterState={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new 
 function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; return null; }
 
 function buildFilterList(filterName, containerId){
-  const container=document.getElementById(containerId); container.innerHTML='';
-  const mapVals=distinctValues[filterName];
-  Array.from(mapVals.keys()).sort().forEach(val=>{
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const mapVals = distinctValues[filterName];
+
+  // Séparer actifs et inactifs
+  const activeVals = [];
+  const inactiveVals = [];
+  mapVals.forEach((_, val)=>{
+    if(filterState[filterName].get(val) !== false) activeVals.push(val);
+    else inactiveVals.push(val);
+  });
+
+  // Trier chaque groupe par ordre croissant/alphabetique
+  activeVals.sort((a,b)=>a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
+  inactiveVals.sort((a,b)=>a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
+  const sortedVals = [...activeVals, ...inactiveVals];
+
+  sortedVals.forEach(val=>{
     const label=document.createElement('label');
-    const checkbox=document.createElement('input'); checkbox.type='checkbox';
+    const checkbox=document.createElement('input');
+    checkbox.type='checkbox';
     if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
-    checkbox.checked=filterState[filterName].get(val)!==false;
+    checkbox.checked = filterState[filterName].get(val)!==false;
     checkbox.addEventListener('change',()=>{
       filterState[filterName].set(val,checkbox.checked);
       filterGeoLayer();
       updateSelectAllCheckbox(filterName);
     });
-    label.appendChild(checkbox); label.appendChild(document.createTextNode(' '+val));
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(' '+val));
     container.appendChild(label);
   });
 }
@@ -166,14 +183,13 @@ function filterGeoLayer(){
     const valDepartement=getKeyIgnoreCase(extras,"Departement")||"";
     const valTexte2=getKeyIgnoreCase(extras,"Texte2")||"";
 
-    const show=
-      filterState.region.get(valRegion)!==false &&
-      filterState.agence.get(valAgence)!==false &&
-      filterState.antenne.get(valAntenne)!==false &&
-      filterState.dsp.get(valDSP)!==false &&
-      filterState.canaldis.get(valCanalDIS)!==false &&
-      filterState.departement.get(valDepartement)!==false &&
-      filterState.texte2.get(valTexte2)!==false;
+    const show = filterState.region.get(valRegion)!==false &&
+                 filterState.agence.get(valAgence)!==false &&
+                 filterState.antenne.get(valAntenne)!==false &&
+                 filterState.dsp.get(valDSP)!==false &&
+                 filterState.canaldis.get(valCanalDIS)!==false &&
+                 filterState.departement.get(valDepartement)!==false &&
+                 filterState.texte2.get(valTexte2)!==false;
 
     if(show) layer.addTo(map); else map.removeLayer(layer);
   });
