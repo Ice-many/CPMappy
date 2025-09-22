@@ -22,7 +22,7 @@
     #controls { padding:10px; background:#111; position:sticky; top:0; z-index:1000; border-bottom:1px solid #444; margin-bottom:10px; color:white; }
     .custom-tooltip { font-weight:bold; }
     .selectall-label { font-weight:bold; margin-top:6px; border-bottom:1px solid #444; padding-bottom:2px; cursor:pointer; }
-    .toggle-btn { font-size:14px; background:#007bff; border:none; color:white; padding:4px 10px; border-radius:4px; cursor:pointer; margin:10px 0 6px 0; width:100%; text-align:left; }
+    .toggle-btn { font-size:14px; background:#6a0dad; border:none; color:white; padding:4px 10px; border-radius:4px; cursor:pointer; margin:10px 0 6px 0; width:100%; text-align:left; }
     #toggleLeftBtn, #toggleRightBtn { position:fixed; top:10px; padding:8px 14px; font-size:14px; border-radius:4px; cursor:pointer; z-index:1300; box-shadow:0 2px 8px rgba(0,191,255,0.7); color:white; background-color:#00bfff; transition:background-color 0.3s ease; }
     #toggleLeftBtn.violet, #toggleRightBtn.violet { background-color:#6a0dad !important; box-shadow:0 2px 8px rgba(106,13,173,0.7) !important; }
     #toggleLeftBtn { left:10px; } #toggleRightBtn { right:10px; }
@@ -37,6 +37,7 @@
 <div id="sidebar-left">
   <div id="controls">
     <input type="file" id="uploadExcel" accept=".xlsx" />
+    <button id="convertBtn">Conversion JSON et Affichage</button>
   </div>
 
   <button class="toggle-btn" data-target="region">Région</button>
@@ -75,9 +76,9 @@
 <div id="sidebar-right">
   <button class="toggle-btn" data-target="departement">Département</button>
   <div id="filter-departement" class="hidden">
+    <label><input type="checkbox" id="contourCP" checked> Contour CP</label>
     <label class="selectall-label"><input type="checkbox" id="departement-select-all" checked> Tout Départements</label>
     <div id="departementList"></div>
-    <label><input type="checkbox" id="contourCP" checked> Contour CP</label>
   </div>
 
   <button class="toggle-btn" data-target="texte2">Nom département</button>
@@ -94,84 +95,44 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,att
 let extraProperties={}, geoLayer;
 let distinctValues={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
 let filterState={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
-let contourEnabled = true; // par défaut activé
-
-document.getElementById("contourCP").addEventListener("change", e=>{
-  contourEnabled = e.target.checked;
-  updateMapWithExtraProperties();
-});
 
 function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; return null; }
 
+// Construction des filtres
 function buildFilterList(filterName, containerId){
   const container=document.getElementById(containerId); container.innerHTML='';
   const mapVals=distinctValues[filterName];
   const items=Array.from(mapVals.keys());
-  const enabled=[], disabled=[];
-  items.forEach(val=>{
+  items.sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'})).forEach(val=>{
     if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
-    const isEnabled=filterState[filterName].get(val)!==false;
-    if(isEnabled) enabled.push(val); else disabled.push(val);
-  });
-  const sortedEnabled=enabled.sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
-  const sortedDisabled=disabled.sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
-  [...sortedEnabled,...sortedDisabled].forEach(val=>{
     const label=document.createElement('label');
-    const checkbox=document.createElement('input'); checkbox.type='checkbox';
-    checkbox.checked=filterState[filterName].get(val)!==false;
-    checkbox.disabled=sortedDisabled.includes(val);
-    checkbox.addEventListener('change',()=>{
-      filterState[filterName].set(val,checkbox.checked);
-      filterGeoLayer();
-      updateSelectAllCheckbox(filterName);
-    });
+    const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.checked=filterState[filterName].get(val)!==false;
+    checkbox.addEventListener('change',()=>{ filterState[filterName].set(val,checkbox.checked); filterGeoLayer(); });
     label.appendChild(checkbox); label.appendChild(document.createTextNode(' '+val));
     container.appendChild(label);
   });
 }
 
-function updateSelectAllCheckbox(filterName){
-  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
-  const allValues=Array.from(distinctValues[filterName].keys());
-  const valuesChecked=allValues.map(val=>filterState[filterName].get(val)!==false);
-  selectAllCheckbox.checked=valuesChecked.length>0 && valuesChecked.every(v=>v===true);
-  selectAllCheckbox.indeterminate=valuesChecked.some(v=>v===true) && !selectAllCheckbox.checked;
-}
-
-function setupSelectAllListener(filterName){
-  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
-  selectAllCheckbox.addEventListener('change',()=>{
-    const checked=selectAllCheckbox.checked;
-    const container=document.getElementById(filterName+'List'); if(!container) return;
-    Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
-      if(!cb.disabled){
-        cb.checked=checked; const val=cb.nextSibling.textContent.trim(); filterState[filterName].set(val,checked);
-      }
-    });
-    updateSelectAllCheckbox(filterName); filterGeoLayer();
-  });
-}
-
-function setupFilterToggleButtons(){
-  const buttons=document.querySelectorAll('.toggle-btn');
-  buttons.forEach(btn=>{
-    const targetId=btn.getAttribute('data-target');
-    btn.textContent=capitalizeFirstLetter(targetId==="texte2"?"Nom département":targetId);
-    btn.addEventListener('click',()=>{
-      const el=document.getElementById('filter-'+targetId);
-      if(!el) return;
-      if(el.classList.contains('hidden')){ el.classList.remove('hidden'); btn.textContent='Masquer '+capitalizeFirstLetter(targetId==="texte2"?"Nom département":targetId); }
-      else{ el.classList.add('hidden'); btn.textContent=capitalizeFirstLetter(targetId==="texte2"?"Nom département":targetId); }
+function updateDistinctValues(jsonData){
+  Object.keys(distinctValues).forEach(k=>{ distinctValues[k].clear(); filterState[k].clear(); });
+  jsonData.forEach(item=>{
+    const cp=(item["Code Postal"]||"").toString(); if(!cp) return;
+    ["Agence","région","Antenne","DSP","Canal DIS","Departement","Texte2"].forEach(key=>{
+      const val=getKeyIgnoreCase(item,key)||"";
+      if(!distinctValues[key.toLowerCase()].has(val)) distinctValues[key.toLowerCase()].set(val,new Set());
+      distinctValues[key.toLowerCase()].get(val).add(cp);
     });
   });
 }
 
-function capitalizeFirstLetter(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
-document.getElementById('toggleLeftBtn').addEventListener('click',()=>{ const left=document.getElementById('sidebar-left'); left.style.display=(left.style.display==='none')?'block':'none'; });
-document.getElementById('toggleRightBtn').addEventListener('click',()=>{ const right=document.getElementById('sidebar-right'); right.style.display=(right.style.display==='none')?'block':'none'; });
+function buildFilterLists(){
+  ["region","agence","antenne","dsp","canaldis","departement","texte2"].forEach(f=>buildFilterList(f,f+"List"));
+}
 
+// Gestion du contour CP
 function filterGeoLayer(){
   if(!geoLayer) return;
+  const contourChecked=document.getElementById('contourCP').checked;
   geoLayer.eachLayer(layer=>{
     const cp=layer.feature.properties.code_postal||layer.feature.properties.codePostal||layer.feature.properties.code||"";
     const extras=extraProperties[cp]||{};
@@ -182,118 +143,67 @@ function filterGeoLayer(){
     const valCanalDIS=getKeyIgnoreCase(extras,"Canal DIS")||"";
     const valDepartement=getKeyIgnoreCase(extras,"Departement")||"";
     const valTexte2=getKeyIgnoreCase(extras,"Texte2")||"";
-    const show=
-      filterState.region.get(valRegion)!==false &&
-      filterState.agence.get(valAgence)!==false &&
-      filterState.antenne.get(valAntenne)!==false &&
-      filterState.dsp.get(valDSP)!==false &&
-      filterState.canaldis.get(valCanalDIS)!==false &&
-      filterState.departement.get(valDepartement)!==false &&
-      filterState.texte2.get(valTexte2)!==false;
+    const show=filterState.region.get(valRegion)!==false &&
+               filterState.agence.get(valAgence)!==false &&
+               filterState.antenne.get(valAntenne)!==false &&
+               filterState.dsp.get(valDSP)!==false &&
+               filterState.canaldis.get(valCanalDIS)!==false &&
+               filterState.departement.get(valDepartement)!==false &&
+               filterState.texte2.get(valTexte2)!==false;
+    layer.setStyle({weight:contourChecked?1:0});
     if(show) layer.addTo(map); else map.removeLayer(layer);
   });
-  syncFilters();
 }
 
-function syncFilters(){
-  const hierarchy=['region','agence','antenne','dsp'];
-  hierarchy.forEach((filterName,index)=>{
-    const container=document.getElementById(filterName+'List'); if(!container) return;
-    Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
-      const val=cb.nextSibling.textContent.trim();
-      const cpSet=distinctValues[filterName].get(val)||new Set();
-      let anyVisible=false;
-      cpSet.forEach(cp=>{
-        const extras=extraProperties[cp]||{};
-        let ok=true;
-        for(let i=0;i<index;i++){
-          const parentFilter=hierarchy[i];
-          const parentVal=getKeyIgnoreCase(extras,parentFilter==='region'?'région':parentFilter==='agence'?'Agence':parentFilter==='antenne'?'Antenne':'DSP')||"";
-          if(filterState[parentFilter].get(parentVal)===false) ok=false;
-        }
-        if(ok) anyVisible=true;
-      });
-      cb.disabled=!anyVisible;
-    });
-    updateSelectAllCheckbox(filterName);
-  });
-  ['region','agence','antenne','dsp'].forEach(f=>buildFilterList(f,f+'List'));
-}
+// Boutons violets déjà dans CSS (.toggle-btn { background:#6a0dad; })
+document.querySelectorAll('.toggle-btn').forEach(btn=>btn.style.background="#6a0dad");
 
-function updateDistinctValues(jsonData){
-  Object.keys(distinctValues).forEach(k=>{ distinctValues[k].clear(); filterState[k].clear(); });
-  jsonData.forEach(item=>{
-    const cp=(item["Code Postal"]||"").toString(); if(!cp) return;
-    const ag=getKeyIgnoreCase(item,"Agence")||"";
-    const re=getKeyIgnoreCase(item,"région")||"";
-    const an=getKeyIgnoreCase(item,"Antenne")||"";
-    const dsp=getKeyIgnoreCase(item,"DSP")||"";
-    const canaldis=getKeyIgnoreCase(item,"Canal DIS")||"";
-    const dep=getKeyIgnoreCase(item,"Departement")||"";
-    const tx2=getKeyIgnoreCase(item,"Texte2")||"";
-    if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag,new Set()); distinctValues.agence.get(ag).add(cp);
-    if(!distinctValues.region.has(re)) distinctValues.region.set(re,new Set()); distinctValues.region.get(re).add(cp);
-    if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an,new Set()); distinctValues.antenne.get(an).add(cp);
-    if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp,new Set()); distinctValues.dsp.get(dsp).add(cp);
-    if(!distinctValues.canaldis.has(canaldis)) distinctValues.canaldis.set(canaldis,new Set()); distinctValues.canaldis.get(canaldis).add(cp);
-    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set()); distinctValues.departement.get(dep).add(cp);
-    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2,new Set()); distinctValues.texte2.get(tx2).add(cp);
-  });
-}
+// Chargement fichier Excel
+document.getElementById('uploadExcel').addEventListener('change',(e)=>{
+  if(e.target.files.length>0){ document.getElementById('convertBtn').click(); }
+});
 
-function buildFilterLists(){
-  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(f=>buildFilterList(f,f+'List'));
-  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(f=>{ updateSelectAllCheckbox(f); setupSelectAllListener(f); });
-  setupFilterToggleButtons();
-}
-
-document.getElementById('uploadExcel').addEventListener('change',()=>{
-  const fileInput=document.getElementById('uploadExcel'); const file=fileInput.files[0];
-  if(!file){ return; }
+// Conversion Excel -> JSON
+document.getElementById('convertBtn').onclick=()=>{
+  const file=document.getElementById('uploadExcel').files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=e=>{
     const data=new Uint8Array(e.target.result);
     const workbook=XLSX.read(data,{type:'array'});
-    const firstSheetName=workbook.SheetNames[0];
-    const sheet=workbook.Sheets[firstSheetName];
+    const sheet=workbook.Sheets[workbook.SheetNames[0]];
     const jsonData=XLSX.utils.sheet_to_json(sheet);
     extraProperties={}; updateDistinctValues(jsonData);
-    jsonData.forEach(item=>{ const cp=(item["Code Postal"]||"").toString(); if(cp.length>0) extraProperties[cp]=item; });
-    Object.keys(distinctValues).forEach(f=>distinctValues[f].forEach((_,val)=>filterState[f].set(val,true)));
-    buildFilterLists(); map.setView([46.6,2.4],6); updateMapWithExtraProperties();
+    jsonData.forEach(item=>{ const cp=(item["Code Postal"]||"").toString(); if(cp) extraProperties[cp]=item; });
+    buildFilterLists(); updateMapWithExtraProperties();
   };
   reader.readAsArrayBuffer(file);
-});
+};
 
+// Chargement GeoJSON
 function updateMapWithExtraProperties(){
   fetch('contours-codes-postaux.geojson')
-  .then(res=>{ if(!res.ok) throw new Error("Le fichier GeoJSON n'a pas été chargé correctement."); return res.json(); })
-  .then(data=>{
-    if(geoLayer) map.removeLayer(geoLayer);
-    geoLayer=L.geoJSON(data,{
-      style:function(feature){
-        const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
-        const extras=extraProperties[cp]||{};
-        return { fillColor:getKeyIgnoreCase(extras,"Fond_couleur")||"#66cc66", color:getKeyIgnoreCase(extras,"Ligne_couleur")||"#000000", weight:contourEnabled?1:0, opacity:1, fillOpacity:0.7 };
-      },
-     
-       
-
-      onEachFeature:function(feature,layer){
-        const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
-        const extras=extraProperties[cp]||{};
-        let texteParts=[]; ["Texte1","Texte2","Texte3","Texte4"].forEach(fld=>{ const val=getKeyIgnoreCase(extras,fld); if(val) texteParts.push(val); });
-        const tooltipText=texteParts.join(" ");
-        const policeCouleur=getKeyIgnoreCase(extras,"police couleur")||'#000000';
-        layer.bindTooltip(`<span style="color:${policeCouleur};">${tooltipText||("Code Postal : "+cp)}</span>`,{className:'custom-tooltip'});
-        const clicUrl=getKeyIgnoreCase(extras,"Clic URL");
-        if(clicUrl && clicUrl.trim().length>0){ layer.on("click",()=>window.open(clicUrl,'_blank')); layer.setStyle({ cursor:"pointer" }); }
-      }
-    }).addTo(map);
-    filterGeoLayer();
-  }).catch(err=>{ console.error(err); map.setView([46.6,2.4],6); });
+    .then(res=>res.json())
+    .then(data=>{
+      if(geoLayer) geoLayer.remove();
+      geoLayer=L.geoJSON(data,{
+        style: feature=>{
+          const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
+          const extras=extraProperties[cp]||{};
+          const contourChecked=document.getElementById('contourCP').checked;
+          return { fillColor:getKeyIgnoreCase(extras,"Fond_couleur")||"#66cc66", color:getKeyIgnoreCase(extras,"Ligne_couleur")||"#000000", weight:contourChecked?1:0, fillOpacity:0.7 };
+        },
+        onEachFeature: (feature,layer)=>{
+          const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
+          const extras=extraProperties[cp]||{};
+          let texteParts=[]; ["Texte1","Texte2","Texte3","Texte4"].forEach(f=>{ const v=getKeyIgnoreCase(extras,f); if(v) texteParts.push(v); });
+          layer.bindTooltip(texteParts.join(" ")||("Code Postal : "+cp));
+        }
+      }).addTo(map);
+      filterGeoLayer();
+    });
 }
+
+document.getElementById('contourCP').addEventListener('change',filterGeoLayer);
 </script>
 </body>
 </html>
-
