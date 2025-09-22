@@ -80,9 +80,9 @@
     <div id="departementList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="texte2">Texte2</button>
+  <button class="toggle-btn" data-target="texte2">Nom</button>
   <div id="filter-texte2" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> new</label>
+    <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Texte2</label>
     <div id="texte2List"></div>
   </div>
 </div>
@@ -97,14 +97,28 @@ let filterState={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new 
 
 function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; return null; }
 
+// --- Construction triée avec grisage géré ---
 function buildFilterList(filterName, containerId){
   const container=document.getElementById(containerId); container.innerHTML='';
   const mapVals=distinctValues[filterName];
-  Array.from(mapVals.keys()).sort().forEach(val=>{
+  const items=Array.from(mapVals.keys());
+
+  // Tri en deux groupes : activables puis désactivés
+  const enabled=[], disabled=[];
+  items.forEach(val=>{
+    if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
+    const isEnabled=filterState[filterName].get(val)!==false;
+    if(isEnabled) enabled.push(val); else disabled.push(val);
+  });
+
+  const sortedEnabled=enabled.sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
+  const sortedDisabled=disabled.sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
+
+  [...sortedEnabled,...sortedDisabled].forEach(val=>{
     const label=document.createElement('label');
     const checkbox=document.createElement('input'); checkbox.type='checkbox';
-    if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
     checkbox.checked=filterState[filterName].get(val)!==false;
+    checkbox.disabled=sortedDisabled.includes(val); // grisage
     checkbox.addEventListener('change',()=>{
       filterState[filterName].set(val,checkbox.checked);
       filterGeoLayer();
@@ -129,7 +143,9 @@ function setupSelectAllListener(filterName){
     const checked=selectAllCheckbox.checked;
     const container=document.getElementById(filterName+'List'); if(!container) return;
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
-      cb.checked=checked; const val=cb.nextSibling.textContent.trim(); filterState[filterName].set(val,checked);
+      if(!cb.disabled){ // on ignore les grisées
+        cb.checked=checked; const val=cb.nextSibling.textContent.trim(); filterState[filterName].set(val,checked);
+      }
     });
     updateSelectAllCheckbox(filterName); filterGeoLayer();
   });
@@ -203,6 +219,8 @@ function syncFilters(){
     });
     updateSelectAllCheckbox(filterName);
   });
+  // reconstruit les listes triées après grisage
+  ['region','agence','antenne','dsp'].forEach(f=>buildFilterList(f,f+'List'));
 }
 
 function updateDistinctValues(jsonData){
