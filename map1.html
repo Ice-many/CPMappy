@@ -10,12 +10,15 @@
   <style>
     html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; overflow:hidden; }
     body { display:flex; height:100vh; user-select:none; }
-    #sidebar-left, #sidebar-right { background:#000; color:white; overflow-y:auto; padding:10px; box-shadow:2px 0 5px rgba(0,0,0,0.3); font-size:14px; min-width:180px; max-width:400px; resize:horizontal; overflow:auto; }
+    #sidebar-left, #sidebar-right {
+      background:#000; color:white; overflow-y:auto; padding:10px;
+      box-shadow:2px 0 5px rgba(0,0,0,0.3); font-size:14px;
+      min-width:180px; max-width:400px; resize:horizontal; overflow:auto;
+    }
     #sidebar-left { border-right:1px solid #444; width:250px; }
     #sidebar-right { border-left:1px solid #444; width:250px; }
     #map { flex-grow:1; height:100vh; }
     label { display:block; margin-bottom:6px; cursor:pointer; user-select:text; color:white; }
-    label.disabled { color:#777; cursor:default; }
     #controls { padding:10px; background:#111; position:sticky; top:0; z-index:1000; border-bottom:1px solid #444; margin-bottom:10px; color:white; }
     .custom-tooltip { font-weight:bold; }
     .selectall-label { font-weight:bold; margin-top:6px; border-bottom:1px solid #444; padding-bottom:2px; cursor:pointer; }
@@ -77,9 +80,9 @@
     <div id="departementList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="texte2">ludo</button>
+  <button class="toggle-btn" data-target="texte2">Nom département</button>
   <div id="filter-texte2" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Texte2</label>
+    <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Nom département</label>
     <div id="texte2List"></div>
   </div>
 </div>
@@ -88,87 +91,47 @@
 var map = L.map('map',{minZoom:6,center:[46.6,2.4],zoom:6});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
 
-let extraProperties = {}, geoLayer;
-let distinctValues = {region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
-let filterState = {region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
+let extraProperties={}, geoLayer;
+let distinctValues={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
+let filterState={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
 
 function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; return null; }
 
 function buildFilterList(filterName, containerId){
-  const container=document.getElementById(containerId);
-  container.innerHTML='';
-
-  const activeVals=[], inactiveVals=[];
-  distinctValues[filterName].forEach((cpSet,val)=>{
-    const isChecked=filterState[filterName].get(val)!==false;
-    (isChecked?activeVals:inactiveVals).push(val);
-  });
-
-  activeVals.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}));
-  inactiveVals.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}));
-  const sortedVals=[...activeVals,...inactiveVals];
-
-  sortedVals.forEach(val=>{
+  const container=document.getElementById(containerId); container.innerHTML='';
+  const mapVals=distinctValues[filterName];
+  Array.from(mapVals.keys()).sort().forEach(val=>{
     const label=document.createElement('label');
-    const checkbox=document.createElement('input');
-    checkbox.type='checkbox';
+    const checkbox=document.createElement('input'); checkbox.type='checkbox';
     if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
     checkbox.checked=filterState[filterName].get(val)!==false;
-
-    // Disable according to hierarchy
-    let isDisabled=false;
-    if(filterName==='agence'){
-      const cpSet=distinctValues[filterName].get(val)||new Set();
-      cpSet.forEach(cp=>{ const extras=extraProperties[cp]||{}; const r=getKeyIgnoreCase(extras,'région')||''; if(filterState.region.get(r)===false) isDisabled=true; });
-    }
-    if(filterName==='antenne'){
-      const cpSet=distinctValues[filterName].get(val)||new Set();
-      cpSet.forEach(cp=>{ const extras=extraProperties[cp]||{}; const a=getKeyIgnoreCase(extras,'Agence')||''; if(filterState.agence.get(a)===false) isDisabled=true; });
-    }
-    if(filterName==='dsp'){
-      const cpSet=distinctValues[filterName].get(val)||new Set();
-      cpSet.forEach(cp=>{ const extras=extraProperties[cp]||{}; const an=getKeyIgnoreCase(extras,'Antenne')||''; if(filterState.antenne.get(an)===false) isDisabled=true; });
-    }
-    checkbox.disabled=isDisabled;
-    if(isDisabled) label.classList.add('disabled'); else label.classList.remove('disabled');
-
     checkbox.addEventListener('change',()=>{
       filterState[filterName].set(val,checkbox.checked);
       filterGeoLayer();
       updateSelectAllCheckbox(filterName);
-      buildFilterList(filterName,containerId); // Rebuild pour tri dynamique
     });
-
-    label.appendChild(checkbox);
-    label.appendChild(document.createTextNode(' '+val));
+    label.appendChild(checkbox); label.appendChild(document.createTextNode(' '+val));
     container.appendChild(label);
   });
 }
 
 function updateSelectAllCheckbox(filterName){
-  const selectAllCheckbox=document.getElementById(filterName+'-select-all');
-  if(!selectAllCheckbox) return;
+  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
   const allValues=Array.from(distinctValues[filterName].keys());
-  const valuesChecked=allValues.map(v=>filterState[filterName].get(v)!==false);
+  const valuesChecked=allValues.map(val=>filterState[filterName].get(val)!==false);
   selectAllCheckbox.checked=valuesChecked.length>0 && valuesChecked.every(v=>v===true);
   selectAllCheckbox.indeterminate=valuesChecked.some(v=>v===true) && !selectAllCheckbox.checked;
 }
 
 function setupSelectAllListener(filterName){
-  const selectAllCheckbox=document.getElementById(filterName+'-select-all');
-  if(!selectAllCheckbox) return;
+  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
   selectAllCheckbox.addEventListener('change',()=>{
     const checked=selectAllCheckbox.checked;
-    const container=document.getElementById(filterName+'List');
-    if(!container) return;
+    const container=document.getElementById(filterName+'List'); if(!container) return;
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
-      cb.checked=checked;
-      const val=cb.nextSibling.textContent.trim();
-      filterState[filterName].set(val,checked);
+      cb.checked=checked; const val=cb.nextSibling.textContent.trim(); filterState[filterName].set(val,checked);
     });
-    updateSelectAllCheckbox(filterName);
-    filterGeoLayer();
-    buildFilterList(filterName, filterName+'List'); // Rebuild tri dynamique
+    updateSelectAllCheckbox(filterName); filterGeoLayer();
   });
 }
 
@@ -176,131 +139,143 @@ function setupFilterToggleButtons(){
   const buttons=document.querySelectorAll('.toggle-btn');
   buttons.forEach(btn=>{
     const targetId=btn.getAttribute('data-target');
+    btn.textContent=capitalizeFirstLetter(targetId);
     btn.addEventListener('click',()=>{
       const el=document.getElementById('filter-'+targetId);
       if(!el) return;
-      if(el.classList.contains('hidden')){ el.classList.remove('hidden'); btn.textContent='Masquer '+targetId; } 
-      else { el.classList.add('hidden'); btn.textContent=targetId; }
+      if(el.classList.contains('hidden')){ el.classList.remove('hidden'); btn.textContent='Masquer '+capitalizeFirstLetter(targetId); }
+      else{ el.classList.add('hidden'); btn.textContent=capitalizeFirstLetter(targetId); }
     });
   });
 }
 
-document.getElementById('toggleLeftBtn').addEventListener('click',()=>{
-  const left=document.getElementById('sidebar-left');
-  left.style.display=(left.style.display==='none')?'block':'none';
-});
-document.getElementById('toggleRightBtn').addEventListener('click',()=>{
-  const right=document.getElementById('sidebar-right');
-  right.style.display=(right.style.display==='none')?'block':'none';
-});
-
-function isAnyChecked(filterName){
-  const states=Array.from(filterState[filterName].values());
-  if(states.length===0) return true;
-  return states.some(v=>v===true);
-}
+function capitalizeFirstLetter(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
+document.getElementById('toggleLeftBtn').addEventListener('click',()=>{ const left=document.getElementById('sidebar-left'); left.style.display=(left.style.display==='none')?'block':'none'; });
+document.getElementById('toggleRightBtn').addEventListener('click',()=>{ const right=document.getElementById('sidebar-right'); right.style.display=(right.style.display==='none')?'block':'none'; });
 
 function filterGeoLayer(){
   if(!geoLayer) return;
   geoLayer.eachLayer(layer=>{
-    let cp=layer.feature.properties.code_postal||layer.feature.properties.codePostal||layer.feature.properties.code||"";
-    let extras=extraProperties[cp]||{};
-    let valRegion=getKeyIgnoreCase(extras,'région')||"";
-    let valAgence=getKeyIgnoreCase(extras,'Agence')||"";
-    let valAntenne=getKeyIgnoreCase(extras,'Antenne')||"";
-    let valDSP=getKeyIgnoreCase(extras,'DSP')||"";
-    let valCanalDIS=getKeyIgnoreCase(extras,'Canal DIS')||"";
-    let valDepartement=getKeyIgnoreCase(extras,'Departement')||"";
-    let valTexte2=getKeyIgnoreCase(extras,'Texte2')||"";
+    const cp=layer.feature.properties.code_postal||layer.feature.properties.codePostal||layer.feature.properties.code||"";
+    const extras=extraProperties[cp]||{};
+    const valRegion=getKeyIgnoreCase(extras,"région")||"";
+    const valAgence=getKeyIgnoreCase(extras,"Agence")||"";
+    const valAntenne=getKeyIgnoreCase(extras,"Antenne")||"";
+    const valDSP=getKeyIgnoreCase(extras,"DSP")||"";
+    const valCanalDIS=getKeyIgnoreCase(extras,"Canal DIS")||"";
+    const valDepartement=getKeyIgnoreCase(extras,"Departement")||"";
+    const valTexte2=getKeyIgnoreCase(extras,"Texte2")||"";
 
-    let show = filterState.region.get(valRegion)!==false &&
-               filterState.agence.get(valAgence)!==false &&
-               filterState.antenne.get(valAntenne)!==false &&
-               filterState.dsp.get(valDSP)!==false &&
-               filterState.canaldis.get(valCanalDIS)!==false &&
-               filterState.departement.get(valDepartement)!==false &&
-               filterState.texte2.get(valTexte2)!==false;
+    const show=
+      filterState.region.get(valRegion)!==false &&
+      filterState.agence.get(valAgence)!==false &&
+      filterState.antenne.get(valAntenne)!==false &&
+      filterState.dsp.get(valDSP)!==false &&
+      filterState.canaldis.get(valCanalDIS)!==false &&
+      filterState.departement.get(valDepartement)!==false &&
+      filterState.texte2.get(valTexte2)!==false;
 
-    if(show) layer.addTo(map);
-    else map.removeLayer(layer);
+    if(show) layer.addTo(map); else map.removeLayer(layer);
+  });
+  syncFilters();
+}
+
+// hiérarchie prioritaire : region > agence > antenne > dsp
+function syncFilters(){
+  const hierarchy=['region','agence','antenne','dsp'];
+  hierarchy.forEach((filterName,index)=>{
+    const container=document.getElementById(filterName+'List'); if(!container) return;
+    Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
+      const val=cb.nextSibling.textContent.trim();
+      const cpSet=distinctValues[filterName].get(val)||new Set();
+      let anyVisible=false;
+      cpSet.forEach(cp=>{
+        const extras=extraProperties[cp]||{};
+        let ok=true;
+        for(let i=0;i<index;i++){
+          const parentFilter=hierarchy[i];
+          const parentVal=getKeyIgnoreCase(extras,parentFilter==='region'?'région':parentFilter==='agence'?'Agence':parentFilter==='antenne'?'Antenne':'DSP')||"";
+          if(filterState[parentFilter].get(parentVal)===false) ok=false;
+        }
+        if(ok) anyVisible=true;
+      });
+      cb.disabled=!anyVisible;
+    });
+    updateSelectAllCheckbox(filterName);
   });
 }
 
 function updateDistinctValues(jsonData){
-  for(const key in distinctValues){ distinctValues[key].clear(); filterState[key].clear(); }
+  Object.keys(distinctValues).forEach(k=>{ distinctValues[k].clear(); filterState[k].clear(); });
   jsonData.forEach(item=>{
     const cp=(item["Code Postal"]||"").toString(); if(!cp) return;
-    const ag=getKeyIgnoreCase(item,'Agence')||"";
-    const re=getKeyIgnoreCase(item,'région')||"";
-    const an=getKeyIgnoreCase(item,'Antenne')||"";
-    const dep=getKeyIgnoreCase(item,'Departement')||"";
-    const tx2=getKeyIgnoreCase(item,'Texte2')||"";
-    const dsp=getKeyIgnoreCase(item,'DSP')||"";
-    const canaldis=getKeyIgnoreCase(item,'Canal DIS')||"";
+    const ag=getKeyIgnoreCase(item,"Agence")||"";
+    const re=getKeyIgnoreCase(item,"région")||"";
+    const an=getKeyIgnoreCase(item,"Antenne")||"";
+    const dsp=getKeyIgnoreCase(item,"DSP")||"";
+    const canaldis=getKeyIgnoreCase(item,"Canal DIS")||"";
+    const dep=getKeyIgnoreCase(item,"Departement")||"";
+    const tx2=getKeyIgnoreCase(item,"Texte2")||"";
 
     if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag,new Set()); distinctValues.agence.get(ag).add(cp);
     if(!distinctValues.region.has(re)) distinctValues.region.set(re,new Set()); distinctValues.region.get(re).add(cp);
     if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an,new Set()); distinctValues.antenne.get(an).add(cp);
-    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set()); distinctValues.departement.get(dep).add(cp);
-    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2,new Set()); distinctValues.texte2.get(tx2).add(cp);
     if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp,new Set()); distinctValues.dsp.get(dsp).add(cp);
     if(!distinctValues.canaldis.has(canaldis)) distinctValues.canaldis.set(canaldis,new Set()); distinctValues.canaldis.get(canaldis).add(cp);
+    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set()); distinctValues.departement.get(dep).add(cp);
+    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2,new Set()); distinctValues.texte2.get(tx2).add(cp);
   });
 }
 
 function buildFilterLists(){
-  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(filter=>{ buildFilterList(filter,filter+'List'); });
-  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(filt=>{ updateSelectAllCheckbox(filt); setupSelectAllListener(filt); });
+  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(f=>buildFilterList(f,f+'List'));
+  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(f=>{ updateSelectAllCheckbox(f); setupSelectAllListener(f); });
   setupFilterToggleButtons();
 }
 
 document.getElementById('convertBtn').onclick=()=>{
-  const fileInput=document.getElementById('uploadExcel'); const file=fileInput.files[0]; if(!file){ alert("Sélectionnez un fichier Excel (.xlsx)"); return; }
+  const fileInput=document.getElementById('uploadExcel'); const file=fileInput.files[0];
+  if(!file){ alert("Sélectionnez un fichier Excel (.xlsx) à convertir avant de cliquer."); return; }
   const reader=new FileReader();
   reader.onload=e=>{
     const data=new Uint8Array(e.target.result);
     const workbook=XLSX.read(data,{type:'array'});
-    const firstSheetName=workbook.SheetNames[0]; const sheet=workbook.Sheets[firstSheetName];
+    const firstSheetName=workbook.SheetNames[0];
+    const sheet=workbook.Sheets[firstSheetName];
     const jsonData=XLSX.utils.sheet_to_json(sheet);
 
     extraProperties={}; updateDistinctValues(jsonData);
     jsonData.forEach(item=>{ const cp=(item["Code Postal"]||"").toString(); if(cp.length>0) extraProperties[cp]=item; });
-
-    Object.keys(distinctValues).forEach(filterName=>{ distinctValues[filterName].forEach((_,val)=>{ filterState[filterName].set(val,true); }); });
-
-    buildFilterLists();
-    map.setView([46.6,2.4],6);
-    updateMapWithExtraProperties();
-    alert("Conversion et affichage réalisés !");
+    Object.keys(distinctValues).forEach(f=>distinctValues[f].forEach((_,val)=>filterState[f].set(val,true)));
+    buildFilterLists(); map.setView([46.6,2.4],6); updateMapWithExtraProperties(); alert("Conversion et affichage réalisés !");
   };
   reader.readAsArrayBuffer(file);
 };
 
 function updateMapWithExtraProperties(){
   fetch('contours-codes-postaux.geojson')
-    .then(res=>{ if(!res.ok) throw new Error("GeoJSON non chargé."); return res.json(); })
-    .then(data=>{
-      if(geoLayer) map.removeLayer(geoLayer);
-      geoLayer=L.geoJSON(data,{
-        style: feature=>{
-          let cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
-          let extras=extraProperties[cp]||{};
-          return { fillColor:getKeyIgnoreCase(extras,'Fond_couleur')||"#66cc66", color:getKeyIgnoreCase(extras,'Ligne_couleur')||"#000000", weight:1, opacity:1, fillOpacity:0.7 };
-        },
-        onEachFeature: (feature,layer)=>{
-          let cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
-          let extras=extraProperties[cp]||{};
-          let texteParts=[];
-          ["Texte1","Texte2","Texte3","Texte4"].forEach(f=>{ let val=getKeyIgnoreCase(extras,f); if(val) texteParts.push(val); });
-          let tooltipText=texteParts.join(" ");
-          let policeCouleur=getKeyIgnoreCase(extras,'police couleur')||'#000000';
-          layer.bindTooltip(`<span style="color:${policeCouleur};">${tooltipText||("Code Postal: "+cp)}</span>`,{className:'custom-tooltip'});
-          let clicUrl=getKeyIgnoreCase(extras,'Clic URL');
-          if(clicUrl && clicUrl.trim().length>0){ layer.on("click",()=>window.open(clicUrl,'_blank')); layer.setStyle({cursor:"pointer"}); }
-        }
-      }).addTo(map);
-      filterGeoLayer();
-    }).catch(err=>{ alert(err.message); console.error(err); map.setView([46.6,2.4],6); });
+  .then(res=>{ if(!res.ok) throw new Error("Le fichier GeoJSON n'a pas été chargé correctement."); return res.json(); })
+  .then(data=>{
+    if(geoLayer) map.removeLayer(geoLayer);
+    geoLayer=L.geoJSON(data,{
+      style:function(feature){
+        const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
+        const extras=extraProperties[cp]||{};
+        return { fillColor:getKeyIgnoreCase(extras,"Fond_couleur")||"#66cc66", color:getKeyIgnoreCase(extras,"Ligne_couleur")||"#000000", weight:1, opacity:1, fillOpacity:0.7 };
+      },
+      onEachFeature:function(feature,layer){
+        const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
+        const extras=extraProperties[cp]||{};
+        let texteParts=[]; ["Texte1","Texte2","Texte3","Texte4"].forEach(fld=>{ const val=getKeyIgnoreCase(extras,fld); if(val) texteParts.push(val); });
+        const tooltipText=texteParts.join(" ");
+        const policeCouleur=getKeyIgnoreCase(extras,"police couleur")||'#000000';
+        layer.bindTooltip(`<span style="color:${policeCouleur};">${tooltipText||("Code Postal : "+cp)}</span>`,{className:'custom-tooltip'});
+        const clicUrl=getKeyIgnoreCase(extras,"Clic URL");
+        if(clicUrl && clicUrl.trim().length>0){ layer.on("click",()=>window.open(clicUrl,'_blank')); layer.setStyle({ cursor:"pointer" }); }
+      }
+    }).addTo(map);
+    filterGeoLayer();
+  }).catch(err=>{ alert(err.message); console.error(err); map.setView([46.6,2.4],6); });
 }
 </script>
 </body>
