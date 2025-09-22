@@ -1,72 +1,65 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Carte interactive codes postaux France</title>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <title>Carte interactive codes postaux France</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; overflow:hidden; }
-    body { display:flex; height:100vh; user-select:none; }
-    #sidebar-left, #sidebar-right {
-      background:#000; color:white; overflow-y:auto; padding:10px;
-      box-shadow:2px 0 5px rgba(0,0,0,0.3); font-size:14px;
-      min-width:180px; max-width:400px; resize:horizontal; overflow:auto;
-    }
-    #sidebar-left { border-right:1px solid #444; width:250px; }
-    #sidebar-right { border-left:1px solid #444; width:250px; }
-    #map { flex-grow:1; height:100vh; }
-    label { display:block; margin-bottom:6px; cursor:pointer; user-select:text; color:white; }
-    #controls { padding:10px; background:#111; position:sticky; top:0; z-index:1000; border-bottom:1px solid #444; margin-bottom:10px; color:white; }
-    .custom-tooltip { font-weight:bold; }
-    .selectall-label { font-weight:bold; margin-top:6px; border-bottom:1px solid #444; padding-bottom:2px; cursor:pointer; }
-    .toggle-btn { font-size:14px; background:#007bff; border:none; color:white; padding:4px 10px; border-radius:4px; cursor:pointer; margin:10px 0 6px 0; width:100%; text-align:left; }
-    #toggleLeftBtn, #toggleRightBtn { position:fixed; top:10px; padding:8px 14px; font-size:14px; border-radius:4px; cursor:pointer; z-index:1300; box-shadow:0 2px 8px rgba(0,191,255,0.7); color:white; background-color:#00bfff; transition:background-color 0.3s ease; }
-    #toggleLeftBtn.violet, #toggleRightBtn.violet { background-color:#6a0dad !important; box-shadow:0 2px 8px rgba(106,13,173,0.7) !important; }
-    #toggleLeftBtn { left:10px; } #toggleRightBtn { right:10px; }
-    .hidden { display:none !important; }
+    html,body{margin:0;padding:0;height:100%;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+    body{display:flex;height:100vh}
+    #sidebar-left,#sidebar-right{background:#000;color:#fff;padding:10px;overflow:auto;min-width:180px;max-width:380px}
+    #sidebar-left{border-right:1px solid #444;width:260px}
+    #sidebar-right{border-left:1px solid #444;width:260px}
+    #map{flex:1;height:100vh}
+    label{display:block;margin:4px 0;color:#fff;cursor:pointer}
+    label.disabled{color:#777;cursor:default}
+    .selectall-label{font-weight:bold;border-bottom:1px solid #444;padding-bottom:4px;margin-bottom:6px}
+    .toggle-btn{width:100%;margin:8px 0;padding:6px;border-radius:6px;background:#007bff;color:#fff;border:0;text-align:left;cursor:pointer}
+    #controls{position:sticky;top:0;background:#111;padding:8px;border-bottom:1px solid #444;margin-bottom:8px}
+    .hidden{display:none!important}
   </style>
 </head>
 <body>
 
-<button id="toggleLeftBtn" title="Afficher/Masquer Réseau">Réseau</button>
-<button id="toggleRightBtn" title="Afficher/Masquer Département">Département</button>
+<button id="toggleLeftBtn" style="position:fixed;left:10px;top:10px;z-index:1300;padding:8px 12px;background:#00bfff;border-radius:6px;color:#fff;border:0;cursor:pointer">Réseau</button>
+<button id="toggleRightBtn" style="position:fixed;right:10px;top:10px;z-index:1300;padding:8px 12px;background:#00bfff;border-radius:6px;color:#fff;border:0;cursor:pointer">Département</button>
 
 <div id="sidebar-left">
   <div id="controls">
-    <input type="file" id="uploadExcel" accept=".xlsx" />
-    <button id="convertBtn">Conversion JSON et Affichage</button>
+    <input id="uploadExcel" type="file" accept=".xlsx" />
+    <button id="convertBtn">Conversion JSON et affichage</button>
   </div>
 
   <button class="toggle-btn" data-target="region">Région</button>
   <div id="filter-region" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="region-select-all" checked> Tout Régions</label>
+    <label class="selectall-label"><input id="region-select-all" type="checkbox" checked> Tout Régions</label>
     <div id="regionList"></div>
   </div>
 
   <button class="toggle-btn" data-target="agence">Agence</button>
   <div id="filter-agence" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="agence-select-all" checked> Tout Agences</label>
+    <label class="selectall-label"><input id="agence-select-all" type="checkbox" checked> Tout Agences</label>
     <div id="agenceList"></div>
   </div>
 
   <button class="toggle-btn" data-target="antenne">Antenne</button>
   <div id="filter-antenne" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="antenne-select-all" checked> Tout Antennes</label>
+    <label class="selectall-label"><input id="antenne-select-all" type="checkbox" checked> Tout Antennes</label>
     <div id="antenneList"></div>
   </div>
 
   <button class="toggle-btn" data-target="dsp">DSP</button>
   <div id="filter-dsp" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="dsp-select-all" checked> Tout DSP</label>
+    <label class="selectall-label"><input id="dsp-select-all" type="checkbox" checked> Tout DSP</label>
     <div id="dspList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="canaldis">Canal DIS</button>
+  <button class="toggle-btn" data-target="canaldis">Canal DIS (indépendant)</button>
   <div id="filter-canaldis" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="canaldis-select-all" checked> Tout Canal DIS</label>
+    <label class="selectall-label"><input id="canaldis-select-all" type="checkbox" checked> Tout Canal DIS</label>
     <div id="canaldisList"></div>
   </div>
 </div>
@@ -74,227 +67,360 @@
 <div id="map"></div>
 
 <div id="sidebar-right">
-  <button class="toggle-btn" data-target="departement">Département</button>
+  <button class="toggle-btn" data-target="departement">Département (indépendant)</button>
   <div id="filter-departement" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="departement-select-all" checked> Tout Départements</label>
+    <label class="selectall-label"><input id="departement-select-all" type="checkbox" checked> Tout Départements</label>
     <div id="departementList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="texte2">Nom</button>
+  <button class="toggle-btn" data-target="texte2">Texte2 (indépendant)</button>
   <div id="filter-texte2" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Texte2</label>
+    <label class="selectall-label"><input id="texte2-select-all" type="checkbox" checked> Tout Texte2</label>
     <div id="texte2List"></div>
   </div>
 </div>
 
 <script>
-var map = L.map('map',{minZoom:6,center:[46.6,2.4],zoom:6});
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
+/* ================== Configuration & structures ================== */
+const map = L.map('map',{minZoom:6,center:[46.6,2.4],zoom:6});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18, attribution:'© OpenStreetMap contributors'}).addTo(map);
 
-let extraProperties={}, geoLayer;
-let distinctValues={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
-let filterState={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
+let geoLayer = null;
+let extraProperties = {}; // extraProperties[code_postal] = rowObject from Excel
 
-function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; return null; }
+const filters = ['region','agence','antenne','dsp','canaldis','departement','texte2'];
+const hierarchy = ['region','agence','antenne','dsp']; // prioritaire, parents => earlier in array
+const independents = ['canaldis','departement','texte2'];
 
-// --- Construction triée avec grisage géré ---
+let distinctValues = {
+  region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(),
+  canaldis:new Map(), departement:new Map(), texte2:new Map()
+};
+// filterState maps value -> boolean (true = allowed)
+let filterState = {
+  region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(),
+  canaldis:new Map(), departement:new Map(), texte2:new Map()
+};
+
+const keyNames = {
+  region: 'région',
+  agence: 'Agence',
+  antenne: 'Antenne',
+  dsp: 'DSP',
+  canaldis: 'Canal DIS',
+  departement: 'Departement',
+  texte2: 'Texte2'
+};
+
+/* helper: find a key in an object ignoring case/spacing */
+function getKeyIgnoreCase(obj, key){
+  if(!obj || typeof obj !== 'object') return null;
+  const target = key.toLowerCase().replace(/\s+/g,'');
+  for(const k in obj){
+    if(k.toLowerCase().replace(/\s+/g,'') === target) return obj[k];
+  }
+  return null;
+}
+
+/* ================== Activabilité (priorités) ==================
+   - For hierarchical filters (region/agence/antenne/dsp):
+       an option is "activable" if there exists at least one CP in its set
+       such that:
+         * all PARENTS (higher-priority filters) allow that CP's parent-values
+         * all INDEPENDENT filters allow that CP's independent-values
+       (we IGNORE lower-priority filters when computing activability)
+   - For independent filters: activable if it exists in dataset (non-empty)
+*/
+function isActivable(filterName, val){
+  const cpSet = distinctValues[filterName].get(val) || new Set();
+  if(cpSet.size === 0) return false;
+
+  if(independents.includes(filterName)){
+    // independent filter: always activable if it exists
+    return cpSet.size > 0;
+  }
+
+  // hierarchical filter
+  const idx = hierarchy.indexOf(filterName);
+  const parents = (idx > -1) ? hierarchy.slice(0, idx) : [];
+  for(const cp of cpSet){
+    const extras = extraProperties[cp] || {};
+    let ok = true;
+
+    // check parent filters (must be allowed)
+    for(const p of parents){
+      const parentKey = keyNames[p];
+      const parentVal = getKeyIgnoreCase(extras, parentKey) || '';
+      // if parentVal is unknown in filterState, treat as allowed (default true)
+      if(filterState[p].has(parentVal) && filterState[p].get(parentVal) === false){
+        ok = false; break;
+      }
+    }
+    if(!ok) continue;
+
+    // check independent filters (must be allowed)
+    for(const ind of independents){
+      const indKey = keyNames[ind];
+      const indVal = getKeyIgnoreCase(extras, indKey) || '';
+      if(filterState[ind].has(indVal) && filterState[ind].get(indVal) === false){
+        ok = false; break;
+      }
+    }
+    if(ok) return true;
+  }
+  return false;
+}
+
+/* ================== Construction et tri des listes ==================
+   - priorité d'affichage : 1) activable, 2) non-activable
+   - dans chaque groupe : checked (true) d'abord, puis tri alphabétique
+*/
 function buildFilterList(filterName, containerId){
-  const container=document.getElementById(containerId); container.innerHTML='';
-  const mapVals=distinctValues[filterName];
-  const items=Array.from(mapVals.keys());
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
 
-  // Tri en deux groupes : activables puis désactivés
-  const enabled=[], disabled=[];
-  items.forEach(val=>{
-    if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
-    const isEnabled=filterState[filterName].get(val)!==false;
-    if(isEnabled) enabled.push(val); else disabled.push(val);
+  // collect values
+  const items = [];
+  (distinctValues[filterName] || new Map()).forEach((cpSet, val) => {
+    if(!filterState[filterName].has(val)) filterState[filterName].set(val, true); // default true
+    const checked = filterState[filterName].get(val) !== false;
+    const activable = isActivable(filterName, val);
+    items.push({val, checked, activable});
   });
 
-  const sortedEnabled=enabled.sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
-  const sortedDisabled=disabled.sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
+  // split & sort
+  const groupActivable = items.filter(i => i.activable)
+    .sort((a,b) => ( (b.checked|0) - (a.checked|0) ) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
+  const groupNon = items.filter(i => !i.activable)
+    .sort((a,b) => ( (b.checked|0) - (a.checked|0) ) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
 
-  [...sortedEnabled,...sortedDisabled].forEach(val=>{
-    const label=document.createElement('label');
-    const checkbox=document.createElement('input'); checkbox.type='checkbox';
-    checkbox.checked=filterState[filterName].get(val)!==false;
-    checkbox.disabled=sortedDisabled.includes(val); // grisage
-    checkbox.addEventListener('change',()=>{
-      filterState[filterName].set(val,checkbox.checked);
-      filterGeoLayer();
-      updateSelectAllCheckbox(filterName);
+  const sorted = [...groupActivable, ...groupNon];
+
+  // render
+  sorted.forEach(item => {
+    const label = document.createElement('label');
+    if(!item.activable) label.classList.add('disabled');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = item.checked;
+    checkbox.disabled = !item.activable;
+    // when user toggles a checkbox -> update states and fully refresh UI
+    checkbox.addEventListener('change', () => {
+      filterState[filterName].set(item.val, checkbox.checked);
+      updateUI(); // central update
     });
-    label.appendChild(checkbox); label.appendChild(document.createTextNode(' '+val));
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(' ' + item.val));
     container.appendChild(label);
   });
 }
 
-function updateSelectAllCheckbox(filterName){
-  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
-  const allValues=Array.from(distinctValues[filterName].keys());
-  const valuesChecked=allValues.map(val=>filterState[filterName].get(val)!==false);
-  selectAllCheckbox.checked=valuesChecked.length>0 && valuesChecked.every(v=>v===true);
-  selectAllCheckbox.indeterminate=valuesChecked.some(v=>v===true) && !selectAllCheckbox.checked;
-}
-
+/* ================== Select-all behavior (only apply to activable checkboxes) ================== */
+let selectAllInitialized = false;
 function setupSelectAllListener(filterName){
-  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
-  selectAllCheckbox.addEventListener('change',()=>{
-    const checked=selectAllCheckbox.checked;
-    const container=document.getElementById(filterName+'List'); if(!container) return;
-    Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
-      if(!cb.disabled){ // on ignore les grisées
-        cb.checked=checked; const val=cb.nextSibling.textContent.trim(); filterState[filterName].set(val,checked);
-      }
-    });
-    updateSelectAllCheckbox(filterName); filterGeoLayer();
-  });
-}
-
-function setupFilterToggleButtons(){
-  const buttons=document.querySelectorAll('.toggle-btn');
-  buttons.forEach(btn=>{
-    const targetId=btn.getAttribute('data-target');
-    btn.textContent=capitalizeFirstLetter(targetId);
-    btn.addEventListener('click',()=>{
-      const el=document.getElementById('filter-'+targetId);
-      if(!el) return;
-      if(el.classList.contains('hidden')){ el.classList.remove('hidden'); btn.textContent='Masquer '+capitalizeFirstLetter(targetId); }
-      else{ el.classList.add('hidden'); btn.textContent=capitalizeFirstLetter(targetId); }
-    });
-  });
-}
-
-function capitalizeFirstLetter(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
-document.getElementById('toggleLeftBtn').addEventListener('click',()=>{ const left=document.getElementById('sidebar-left'); left.style.display=(left.style.display==='none')?'block':'none'; });
-document.getElementById('toggleRightBtn').addEventListener('click',()=>{ const right=document.getElementById('sidebar-right'); right.style.display=(right.style.display==='none')?'block':'none'; });
-
-function filterGeoLayer(){
-  if(!geoLayer) return;
-  geoLayer.eachLayer(layer=>{
-    const cp=layer.feature.properties.code_postal||layer.feature.properties.codePostal||layer.feature.properties.code||"";
-    const extras=extraProperties[cp]||{};
-    const valRegion=getKeyIgnoreCase(extras,"région")||"";
-    const valAgence=getKeyIgnoreCase(extras,"Agence")||"";
-    const valAntenne=getKeyIgnoreCase(extras,"Antenne")||"";
-    const valDSP=getKeyIgnoreCase(extras,"DSP")||"";
-    const valCanalDIS=getKeyIgnoreCase(extras,"Canal DIS")||"";
-    const valDepartement=getKeyIgnoreCase(extras,"Departement")||"";
-    const valTexte2=getKeyIgnoreCase(extras,"Texte2")||"";
-
-    const show=
-      filterState.region.get(valRegion)!==false &&
-      filterState.agence.get(valAgence)!==false &&
-      filterState.antenne.get(valAntenne)!==false &&
-      filterState.dsp.get(valDSP)!==false &&
-      filterState.canaldis.get(valCanalDIS)!==false &&
-      filterState.departement.get(valDepartement)!==false &&
-      filterState.texte2.get(valTexte2)!==false;
-
-    if(show) layer.addTo(map); else map.removeLayer(layer);
-  });
-  syncFilters();
-}
-
-// hiérarchie prioritaire : region > agence > antenne > dsp
-function syncFilters(){
-  const hierarchy=['region','agence','antenne','dsp'];
-  hierarchy.forEach((filterName,index)=>{
-    const container=document.getElementById(filterName+'List'); if(!container) return;
-    Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
-      const val=cb.nextSibling.textContent.trim();
-      const cpSet=distinctValues[filterName].get(val)||new Set();
-      let anyVisible=false;
-      cpSet.forEach(cp=>{
-        const extras=extraProperties[cp]||{};
-        let ok=true;
-        for(let i=0;i<index;i++){
-          const parentFilter=hierarchy[i];
-          const parentVal=getKeyIgnoreCase(extras,parentFilter==='region'?'région':parentFilter==='agence'?'Agence':parentFilter==='antenne'?'Antenne':'DSP')||"";
-          if(filterState[parentFilter].get(parentVal)===false) ok=false;
-        }
-        if(ok) anyVisible=true;
-      });
-      cb.disabled=!anyVisible;
+  if(selectAllInitialized && document.getElementById(filterName+'-select-all').dataset.init === '1') return;
+  const selectAll = document.getElementById(filterName+'-select-all');
+  if(!selectAll) return;
+  selectAll.addEventListener('change', () => {
+    const checked = selectAll.checked;
+    const container = document.getElementById(filterName + 'List');
+    if(!container) return;
+    Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
+      if(cb.disabled) return; // don't toggle disabled ones
+      cb.checked = checked;
+      const val = cb.nextSibling.textContent.trim();
+      filterState[filterName].set(val, cb.checked);
     });
     updateSelectAllCheckbox(filterName);
+    updateUI();
   });
-  // reconstruit les listes triées après grisage
-  ['region','agence','antenne','dsp'].forEach(f=>buildFilterList(f,f+'List'));
+  selectAll.dataset.init = '1';
 }
 
+/* ---------------- updateSelectAllCheckbox ---------------- */
+function updateSelectAllCheckbox(filterName){
+  const selectAll = document.getElementById(filterName+'-select-all');
+  if(!selectAll) return;
+  const allVals = Array.from(distinctValues[filterName].keys());
+  if(allVals.length === 0){ selectAll.checked = false; selectAll.indeterminate = false; return; }
+  const states = allVals.map(v => filterState[filterName].get(v) !== false);
+  selectAll.checked = states.every(s => s === true);
+  selectAll.indeterminate = states.some(s => s === true) && !selectAll.checked;
+}
+
+/* ================== Filter -> map, et mise à jour globale ================== */
+function filterGeoLayer(){
+  if(!geoLayer) return;
+  geoLayer.eachLayer(layer => {
+    const props = layer.feature.properties || {};
+    const cp = props.code_postal || props.codePostal || props.code || '';
+    const extras = extraProperties[cp] || {};
+
+    const checks = {
+      region: filterState.region.get( (getKeyIgnoreCase(extras, keyNames.region) || '') ) !== false,
+      agence: filterState.agence.get( (getKeyIgnoreCase(extras, keyNames.agence) || '') ) !== false,
+      antenne: filterState.antenne.get( (getKeyIgnoreCase(extras, keyNames.antenne) || '') ) !== false,
+      dsp: filterState.dsp.get( (getKeyIgnoreCase(extras, keyNames.dsp) || '') ) !== false,
+      canaldis: filterState.canaldis.get( (getKeyIgnoreCase(extras, keyNames.canaldis) || '') ) !== false,
+      departement: filterState.departement.get( (getKeyIgnoreCase(extras, keyNames.departement) || '') ) !== false,
+      texte2: filterState.texte2.get( (getKeyIgnoreCase(extras, keyNames.texte2) || '') ) !== false
+    };
+
+    const show = Object.values(checks).every(v => v === true);
+    if(show) layer.addTo(map);
+    else map.removeLayer(layer);
+  });
+}
+
+/* central update: refresh map, then rebuild lists (so disabled/ordering updated), then update selectAll states */
+function updateUI(){
+  filterGeoLayer();
+  // rebuild ALL lists (so ordering & disabled reflect current state)
+  filters.forEach(f => buildFilterList(f, f + 'List'));
+  // update selectAll states
+  filters.forEach(f => updateSelectAllCheckbox(f));
+}
+
+/* ================ Helpers to populate distinctValues from Excel data ================ */
 function updateDistinctValues(jsonData){
-  Object.keys(distinctValues).forEach(k=>{ distinctValues[k].clear(); filterState[k].clear(); });
-  jsonData.forEach(item=>{
-    const cp=(item["Code Postal"]||"").toString(); if(!cp) return;
-    const ag=getKeyIgnoreCase(item,"Agence")||"";
-    const re=getKeyIgnoreCase(item,"région")||"";
-    const an=getKeyIgnoreCase(item,"Antenne")||"";
-    const dsp=getKeyIgnoreCase(item,"DSP")||"";
-    const canaldis=getKeyIgnoreCase(item,"Canal DIS")||"";
-    const dep=getKeyIgnoreCase(item,"Departement")||"";
-    const tx2=getKeyIgnoreCase(item,"Texte2")||"";
+  // reset
+  for(const k in distinctValues){ distinctValues[k].clear(); filterState[k].clear(); }
+  jsonData.forEach(row => {
+    const cp = (row["Code Postal"] || row["code_postal"] || row["codePostal"] || '').toString().trim();
+    if(!cp) return;
+    const re = getKeyIgnoreCase(row, keyNames.region) || '';
+    const ag = getKeyIgnoreCase(row, keyNames.agence) || '';
+    const an = getKeyIgnoreCase(row, keyNames.antenne) || '';
+    const dsp = getKeyIgnoreCase(row, keyNames.dsp) || '';
+    const canal = getKeyIgnoreCase(row, keyNames.canaldis) || '';
+    const dep = getKeyIgnoreCase(row, keyNames.departement) || '';
+    const tx2 = getKeyIgnoreCase(row, keyNames.texte2) || '';
 
-    if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag,new Set()); distinctValues.agence.get(ag).add(cp);
-    if(!distinctValues.region.has(re)) distinctValues.region.set(re,new Set()); distinctValues.region.get(re).add(cp);
-    if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an,new Set()); distinctValues.antenne.get(an).add(cp);
-    if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp,new Set()); distinctValues.dsp.get(dsp).add(cp);
-    if(!distinctValues.canaldis.has(canaldis)) distinctValues.canaldis.set(canaldis,new Set()); distinctValues.canaldis.get(canaldis).add(cp);
-    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set()); distinctValues.departement.get(dep).add(cp);
-    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2,new Set()); distinctValues.texte2.get(tx2).add(cp);
+    if(!distinctValues.region.has(re)) distinctValues.region.set(re, new Set()); distinctValues.region.get(re).add(cp);
+    if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag, new Set()); distinctValues.agence.get(ag).add(cp);
+    if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an, new Set()); distinctValues.antenne.get(an).add(cp);
+    if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp, new Set()); distinctValues.dsp.get(dsp).add(cp);
+    if(!distinctValues.canaldis.has(canal)) distinctValues.canaldis.set(canal, new Set()); distinctValues.canaldis.get(canal).add(cp);
+    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep, new Set()); distinctValues.departement.get(dep).add(cp);
+    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2, new Set()); distinctValues.texte2.get(tx2).add(cp);
   });
 }
 
-function buildFilterLists(){
-  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(f=>buildFilterList(f,f+'List'));
-  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(f=>{ updateSelectAllCheckbox(f); setupSelectAllListener(f); });
-  setupFilterToggleButtons();
+/* ================== Build initial lists & attach listeners once ================== */
+function initialBuildAndListeners(){
+  // build lists once
+  filters.forEach(f => buildFilterList(f, f + 'List'));
+  // setup selectAll listeners once
+  filters.forEach(f => setupSelectAllListener(f));
+  selectAllInitialized = true;
+  // setup toggle buttons
+  document.querySelectorAll('.toggle-btn').forEach(btn=>{
+    const tgt = btn.getAttribute('data-target');
+    btn.textContent = capitalize(tgt);
+    btn.addEventListener('click', ()=> {
+      const el = document.getElementById('filter-'+tgt);
+      if(!el) return;
+      el.classList.toggle('hidden');
+      btn.textContent = el.classList.contains('hidden') ? capitalize(tgt) : ('Masquer ' + capitalize(tgt));
+    });
+  });
+  // wire top toggle buttons
+  document.getElementById('toggleLeftBtn').addEventListener('click', ()=> {
+    const left = document.getElementById('sidebar-left'); left.style.display = (left.style.display === 'none') ? 'block' : 'none';
+  });
+  document.getElementById('toggleRightBtn').addEventListener('click', ()=> {
+    const right = document.getElementById('sidebar-right'); right.style.display = (right.style.display === 'none') ? 'block' : 'none';
+  });
 }
 
-document.getElementById('convertBtn').onclick=()=>{
-  const fileInput=document.getElementById('uploadExcel'); const file=fileInput.files[0];
-  if(!file){ alert("Sélectionnez un fichier Excel (.xlsx) à convertir avant de cliquer."); return; }
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const data=new Uint8Array(e.target.result);
-    const workbook=XLSX.read(data,{type:'array'});
-    const firstSheetName=workbook.SheetNames[0];
-    const sheet=workbook.Sheets[firstSheetName];
-    const jsonData=XLSX.utils.sheet_to_json(sheet);
+function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
 
-    extraProperties={}; updateDistinctValues(jsonData);
-    jsonData.forEach(item=>{ const cp=(item["Code Postal"]||"").toString(); if(cp.length>0) extraProperties[cp]=item; });
-    Object.keys(distinctValues).forEach(f=>distinctValues[f].forEach((_,val)=>filterState[f].set(val,true)));
-    buildFilterLists(); map.setView([46.6,2.4],6); updateMapWithExtraProperties(); alert("Conversion et affichage réalisés !");
+/* ================== Convert Excel -> JSON and init ================== */
+document.getElementById('convertBtn').addEventListener('click', () => {
+  const fileInput = document.getElementById('uploadExcel');
+  const file = fileInput.files[0];
+  if(!file){ alert('Sélectionne un fichier .xlsx'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, {type:'array'});
+    const first = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[first];
+    const jsonData = XLSX.utils.sheet_to_json(sheet, {defval: ''});
+
+    // store rows keyed by CP for quick lookup
+    extraProperties = {};
+    jsonData.forEach(row => {
+      const cp = (row["Code Postal"] || row["code_postal"] || row["codePostal"] || '').toString().trim();
+      if(cp) extraProperties[cp] = row;
+    });
+
+    updateDistinctValues(jsonData);
+
+    // init filterState default true for all values
+    Object.keys(distinctValues).forEach(k => {
+      distinctValues[k].forEach((_, val) => {
+        filterState[k].set(val, true);
+      });
+    });
+
+    // initial UI build
+    initialBuildAndListeners();
+    updateMapWithExtraProperties();
+    updateUI();
+    alert('Fichier converti et affichage initialisé.');
   };
   reader.readAsArrayBuffer(file);
-};
+});
 
+/* ================== Load GeoJSON and add to map ================== */
 function updateMapWithExtraProperties(){
   fetch('contours-codes-postaux.geojson')
-  .then(res=>{ if(!res.ok) throw new Error("Le fichier GeoJSON n'a pas été chargé correctement."); return res.json(); })
-  .then(data=>{
-    if(geoLayer) map.removeLayer(geoLayer);
-    geoLayer=L.geoJSON(data,{
-      style:function(feature){
-        const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
-        const extras=extraProperties[cp]||{};
-        return { fillColor:getKeyIgnoreCase(extras,"Fond_couleur")||"#66cc66", color:getKeyIgnoreCase(extras,"Ligne_couleur")||"#000000", weight:1, opacity:1, fillOpacity:0.7 };
-      },
-      onEachFeature:function(feature,layer){
-        const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
-        const extras=extraProperties[cp]||{};
-        let texteParts=[]; ["Texte1","Texte2","Texte3","Texte4"].forEach(fld=>{ const val=getKeyIgnoreCase(extras,fld); if(val) texteParts.push(val); });
-        const tooltipText=texteParts.join(" ");
-        const policeCouleur=getKeyIgnoreCase(extras,"police couleur")||'#000000';
-        layer.bindTooltip(`<span style="color:${policeCouleur};">${tooltipText||("Code Postal : "+cp)}</span>`,{className:'custom-tooltip'});
-        const clicUrl=getKeyIgnoreCase(extras,"Clic URL");
-        if(clicUrl && clicUrl.trim().length>0){ layer.on("click",()=>window.open(clicUrl,'_blank')); layer.setStyle({ cursor:"pointer" }); }
-      }
-    }).addTo(map);
-    filterGeoLayer();
-  }).catch(err=>{ alert(err.message); console.error(err); map.setView([46.6,2.4],6); });
+    .then(r => { if(!r.ok) throw new Error('GeoJSON non chargé. Vérifie le chemin.'); return r.json(); })
+    .then(data => {
+      if(geoLayer) map.removeLayer(geoLayer);
+      geoLayer = L.geoJSON(data, {
+        style: feature => {
+          const cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || '';
+          const extras = extraProperties[cp] || {};
+          return {
+            fillColor: getKeyIgnoreCase(extras,'Fond_couleur') || '#66cc66',
+            color: getKeyIgnoreCase(extras,'Ligne_couleur') || '#000000',
+            weight: 1, opacity:1, fillOpacity:0.7
+          };
+        },
+        onEachFeature: (feature, layer) => {
+          const cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || '';
+          const extras = extraProperties[cp] || {};
+          const parts = [];
+          ['Texte1','Texte2','Texte3','Texte4'].forEach(f => { const v = getKeyIgnoreCase(extras,f); if(v) parts.push(v); });
+          const tooltip = parts.join(' ');
+          const police = getKeyIgnoreCase(extras,'police couleur') || '#000000';
+          layer.bindTooltip(`<span style="color:${police}">${tooltip || ('Code Postal : ' + cp)}</span>`, {className:'custom-tooltip'});
+          const clic = getKeyIgnoreCase(extras,'Clic URL') || '';
+          if(clic && clic.trim().length) { layer.on('click', ()=> window.open(clic,'_blank')); layer.setStyle({cursor:'pointer'}); }
+        }
+      }).addTo(map);
+      // initial filter
+      updateUI();
+    })
+    .catch(err => { alert(err.message); console.error(err); });
 }
+
+/* ================== init small helpers ================== */
+function setupSelectAllInitial(){
+  filters.forEach(f=> setupSelectAllListener(f));
+}
+
+/* ================== small ready-state UX wiring ================== */
+document.addEventListener('DOMContentLoaded', ()=> {
+  // nothing to do until user loads Excel; but wire toggles text correctly
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    const tgt = btn.getAttribute('data-target');
+    btn.textContent = capitalize(tgt);
+  });
+});
+
 </script>
 </body>
 </html>
