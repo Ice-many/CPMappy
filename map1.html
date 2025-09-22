@@ -17,20 +17,30 @@
     label{display:block;margin:4px 0;color:#fff;cursor:pointer}
     label.disabled{color:#777;cursor:default}
     .selectall-label{font-weight:bold;border-bottom:1px solid #444;padding-bottom:4px;margin-bottom:6px}
-    .toggle-btn{width:100%;margin:8px 0;padding:6px;border-radius:6px;background:#007bff;color:#fff;border:0;text-align:left;cursor:pointer}
+    .toggle-btn{
+      width:100%;
+      margin:8px 0;
+      padding:6px;
+      border-radius:6px;
+      background:#8a2be2; /* violet */
+      color:#fff;
+      border:0;
+      text-align:left;
+      cursor:pointer;
+      user-select:none;
+    }
     #controls{position:sticky;top:0;background:#111;padding:8px;border-bottom:1px solid #444;margin-bottom:8px}
     .hidden{display:none!important}
   </style>
 </head>
 <body>
 
-<button id="toggleLeftBtn" style="position:fixed;left:10px;top:10px;z-index:1300;padding:8px 12px;background:#00bfff;border-radius:6px;color:#fff;border:0;cursor:pointer">Réseau</button>
-<button id="toggleRightBtn" style="position:fixed;right:10px;top:10px;z-index:1300;padding:8px 12px;background:#00bfff;border-radius:6px;color:#fff;border:0;cursor:pointer">Département</button>
+<button id="toggleLeftBtn" style="position:fixed;left:10px;top:10px;z-index:1300;padding:8px 12px;background:#8a2be2;border-radius:6px;color:#fff;border:0;cursor:pointer">Réseau</button>
+<button id="toggleRightBtn" style="position:fixed;right:10px;top:10px;z-index:1300;padding:8px 12px;background:#8a2be2;border-radius:6px;color:#fff;border:0;cursor:pointer">Nom département</button>
 
 <div id="sidebar-left">
   <div id="controls">
     <input id="uploadExcel" type="file" accept=".xlsx" />
-    <!-- Bouton "Conversion JSON et affichage" retiré pour conversion automatique -->
   </div>
 
   <button class="toggle-btn" data-target="region">Région</button>
@@ -73,13 +83,12 @@
     <div id="departementList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="texte2">Texte2 (indépendant)</button>
+  <button class="toggle-btn" data-target="texte2">Nom département</button>
   <div id="filter-texte2" class="hidden">
-    <label class="selectall-label"><input id="texte2-select-all" type="checkbox" checked> Tout Texte2</label>
+    <label class="selectall-label"><input id="texte2-select-all" type="checkbox" checked> Tout Nom département</label>
     <div id="texte2List"></div>
   </div>
 
-  <!-- Nouvelle case à cocher "Contour" -->
   <div style="margin-top:16px; border-top:1px solid #444; padding-top:8px;">
     <label>
       <input type="checkbox" id="contourCheckbox" checked />
@@ -97,14 +106,13 @@ let geoLayer = null;
 let extraProperties = {}; // extraProperties[code_postal] = rowObject from Excel
 
 const filters = ['region','agence','antenne','dsp','canaldis','departement','texte2'];
-const hierarchy = ['region','agence','antenne','dsp']; // prioritaire, parents => earlier in array
+const hierarchy = ['region','agence','antenne','dsp']; 
 const independents = ['canaldis','departement','texte2'];
 
 let distinctValues = {
   region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(),
   canaldis:new Map(), departement:new Map(), texte2:new Map()
 };
-// filterState maps value -> boolean (true = allowed)
 let filterState = {
   region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(),
   canaldis:new Map(), departement:new Map(), texte2:new Map()
@@ -117,7 +125,7 @@ const keyNames = {
   dsp: 'DSP',
   canaldis: 'Canal DIS',
   departement: 'Departement',
-  texte2: 'Texte2'
+  texte2: 'Nom département'  // Change clé texte2 pour affichage et filtre "Nom département"
 };
 
 /* helper: find a key in an object ignoring case/spacing */
@@ -130,15 +138,10 @@ function getKeyIgnoreCase(obj, key){
   return null;
 }
 
-/* ================== Activabilité (priorités) ================== */
 function isActivable(filterName, val){
   const cpSet = distinctValues[filterName].get(val) || new Set();
   if(cpSet.size === 0) return false;
-
-  if(independents.includes(filterName)){
-    return cpSet.size > 0;
-  }
-
+  if(independents.includes(filterName)) return cpSet.size > 0;
   const idx = hierarchy.indexOf(filterName);
   const parents = (idx > -1) ? hierarchy.slice(0, idx) : [];
   for(const cp of cpSet){
@@ -164,11 +167,9 @@ function isActivable(filterName, val){
   return false;
 }
 
-/* ================== Construction et tri des listes ================== */
 function buildFilterList(filterName, containerId){
   const container = document.getElementById(containerId);
   container.innerHTML = '';
-
   const items = [];
   (distinctValues[filterName] || new Map()).forEach((cpSet, val) => {
     if(!filterState[filterName].has(val)) filterState[filterName].set(val, true);
@@ -176,6 +177,10 @@ function buildFilterList(filterName, containerId){
     const activable = isActivable(filterName, val);
     items.push({val, checked, activable});
   });
+  // For "texte2" (nom département), impose all items are activable to always show full list
+  if(filterName === 'texte2'){
+    items.forEach(item => item.activable = true);
+  }
 
   const groupActivable = items.filter(i => i.activable)
     .sort((a,b) => ((b.checked|0) - (a.checked|0)) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
@@ -201,7 +206,6 @@ function buildFilterList(filterName, containerId){
   });
 }
 
-/* ================== Select-all behavior ================== */
 let selectAllInitialized = false;
 function setupSelectAllListener(filterName){
   if(selectAllInitialized && document.getElementById(filterName+'-select-all').dataset.init === '1') return;
@@ -223,7 +227,6 @@ function setupSelectAllListener(filterName){
   selectAll.dataset.init = '1';
 }
 
-/* ---------------- updateSelectAllCheckbox ---------------- */
 function updateSelectAllCheckbox(filterName){
   const selectAll = document.getElementById(filterName+'-select-all');
   if(!selectAll) return;
@@ -234,7 +237,6 @@ function updateSelectAllCheckbox(filterName){
   selectAll.indeterminate = states.some(s => s === true) && !selectAll.checked;
 }
 
-/* ================== Filter -> map, et mise à jour globale ================== */
 function filterGeoLayer(){
   if(!geoLayer) return;
   geoLayer.eachLayer(layer => {
@@ -258,7 +260,6 @@ function filterGeoLayer(){
   });
 }
 
-/* ================== Mise à jour des styles du contour selon checkbox ================== */
 function updateContourStyleOnGeoLayer(weight) {
   if(!geoLayer) return;
   geoLayer.setStyle(feature => {
@@ -274,14 +275,12 @@ function updateContourStyleOnGeoLayer(weight) {
   });
 }
 
-/* central update: refresh map, then rebuild lists, then update selectAll states */
 function updateUI(){
   filterGeoLayer();
   filters.forEach(f => buildFilterList(f, f + 'List'));
   filters.forEach(f => updateSelectAllCheckbox(f));
 }
 
-/* ================ Helpers to populate distinctValues from Excel data ================ */
 function updateDistinctValues(jsonData){
   for(const k in distinctValues){ distinctValues[k].clear(); filterState[k].clear(); }
   jsonData.forEach(row => {
@@ -305,7 +304,6 @@ function updateDistinctValues(jsonData){
   });
 }
 
-/* ================== Build initial lists & attach listeners once ================== */
 function initialBuildAndListeners(){
   filters.forEach(f => buildFilterList(f, f + 'List'));
   filters.forEach(f => setupSelectAllListener(f));
@@ -344,7 +342,6 @@ function initialBuildAndListeners(){
 
 function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
 
-/* ================== Convert Excel -> JSON and init automatiquement ================== */
 function convertAndDisplay(file) {
   if(!file){ alert('Sélectionne un fichier .xlsx'); return; }
   const reader = new FileReader();
@@ -378,7 +375,6 @@ function convertAndDisplay(file) {
   reader.readAsArrayBuffer(file);
 }
 
-/* ================== Load GeoJSON and add to map ================== */
 function updateMapWithExtraProperties(){
   fetch('contours-codes-postaux.geojson')
     .then(r => { if(!r.ok) throw new Error('GeoJSON non chargé. Vérifie le chemin.'); return r.json(); })
@@ -414,11 +410,9 @@ function updateMapWithExtraProperties(){
     .catch(err => { alert(err.message); console.error(err); });
 }
 
-/* ================== Initialisation au chargement DOM ================== */
 document.addEventListener('DOMContentLoaded', ()=> {
   initialBuildAndListeners();
 
-  // Conversion auto dès sélection du fichier
   document.getElementById('uploadExcel').addEventListener('change', (event) => {
     const file = event.target.files[0];
     convertAndDisplay(file);
