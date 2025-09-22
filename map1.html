@@ -33,7 +33,7 @@
       position:sticky;
       top:0;
       background:#111;
-      padding:24px 8px 8px 8px; /* décalage vertical de 2 lignes (~16px par ligne + 8px padding) */
+      padding:40px 8px 8px 8px; /* décalage vertical augmenté */
       border-bottom:1px solid #444;
       margin-bottom:8px;
       box-sizing: border-box;
@@ -182,7 +182,7 @@ function buildFilterList(filterName, containerId){
     if(!filterState[filterName].has(val)) filterState[filterName].set(val, true);
     const checked = filterState[filterName].get(val) !== false;
     let activable = isActivable(filterName, val);
-    if(filterName === 'texte2') activable = true; // Always show all for texte2 "Nom département"
+    if(filterName === 'texte2') activable = true;
     items.push({val, checked, activable});
   });
   const groupActivable = items.filter(i => i.activable)
@@ -327,7 +327,6 @@ function initialBuildAndListeners(){
     right.style.display = (right.style.display === 'none') ? 'block' : 'none';
   });
 
-  // Listener case "Contour"
   const contourCheckbox = document.getElementById('contourCheckbox');
   contourCheckbox.addEventListener('change', () => {
     if(contourCheckbox.checked){
@@ -367,8 +366,6 @@ function convertAndDisplay(file) {
     filters.forEach(f => buildFilterList(f, f + 'List'));
     updateUI();
     updateMapWithExtraProperties();
-
-    // popup supprimé
   };
   reader.readAsArrayBuffer(file);
 }
