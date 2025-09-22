@@ -30,7 +30,7 @@
 <div id="sidebar-left">
   <div id="controls">
     <input id="uploadExcel" type="file" accept=".xlsx" />
-    <!-- Bouton supprimé pour conversion automatique -->
+    <button id="convertBtn">Conversion JSON et affichage</button>
   </div>
 
   <button class="toggle-btn" data-target="region">Région</button>
@@ -301,4 +301,126 @@ function updateDistinctValues(jsonData){
     if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an, new Set()); distinctValues.antenne.get(an).add(cp);
     if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp, new Set()); distinctValues.dsp.get(dsp).add(cp);
     if(!distinctValues.canaldis.has(canal)) distinctValues.canaldis.set(canal, new Set()); distinctValues.canaldis.get(canal).add(cp);
-    if(!distinct
+    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep, new Set()); distinctValues.departement.get(dep).add(cp);
+    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2, new Set()); distinctValues.texte2.get(tx2).add(cp);
+  });
+}
+
+/* ================== Build initial lists & attach listeners once ================== */
+function initialBuildAndListeners(){
+  // build lists once
+  filters.forEach(f => buildFilterList(f, f + 'List'));
+  // setup selectAll listeners once
+  filters.forEach(f => setupSelectAllListener(f));
+  selectAllInitialized = true;
+  // setup toggle buttons
+  document.querySelectorAll('.toggle-btn').forEach(btn=>{
+    const tgt = btn.getAttribute('data-target');
+    btn.textContent = capitalize(tgt);
+    btn.addEventListener('click', ()=> {
+      const el = document.getElementById('filter-'+tgt);
+      if(!el) return;
+      el.classList.toggle('hidden');
+      btn.textContent = el.classList.contains('hidden') ? capitalize(tgt) : ('Masquer ' + capitalize(tgt));
+    });
+  });
+  // wire top toggle buttons
+  document.getElementById('toggleLeftBtn').addEventListener('click', ()=> {
+    const left = document.getElementById('sidebar-left'); left.style.display = (left.style.display === 'none') ? 'block' : 'none';
+  });
+  document.getElementById('toggleRightBtn').addEventListener('click', ()=> {
+    const right = document.getElementById('sidebar-right'); right.style.display = (right.style.display === 'none') ? 'block' : 'none';
+  });
+}
+
+function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+/* ================== Convert Excel -> JSON and init ================== */
+document.getElementById('convertBtn').addEventListener('click', () => {
+  const fileInput = document.getElementById('uploadExcel');
+  const file = fileInput.files[0];
+  if(!file){ alert('Sélectionne un fichier .xlsx'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, {type:'array'});
+    const first = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[first];
+    const jsonData = XLSX.utils.sheet_to_json(sheet, {defval: ''});
+
+    // store rows keyed by CP for quick lookup
+    extraProperties = {};
+    jsonData.forEach(row => {
+      const cp = (row["Code Postal"] || row["code_postal"] || row["codePostal"] || '').toString().trim();
+      if(cp) extraProperties[cp] = row;
+    });
+
+    updateDistinctValues(jsonData);
+
+    // init filterState default true for all values
+    Object.keys(distinctValues).forEach(k => {
+      distinctValues[k].forEach((_, val) => {
+        filterState[k].set(val, true);
+      });
+    });
+
+    // initial UI build
+    initialBuildAndListeners();
+    updateMapWithExtraProperties();
+    updateUI();
+    alert('Fichier converti et affichage initialisé.');
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+/* ================== Load GeoJSON and add to map ================== */
+function updateMapWithExtraProperties(){
+  fetch('contours-codes-postaux.geojson')
+    .then(r => { if(!r.ok) throw new Error('GeoJSON non chargé. Vérifie le chemin.'); return r.json(); })
+    .then(data => {
+      if(geoLayer) map.removeLayer(geoLayer);
+      geoLayer = L.geoJSON(data, {
+        style: feature => {
+          const cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || '';
+          const extras = extraProperties[cp] || {};
+          return {
+            fillColor: getKeyIgnoreCase(extras,'Fond_couleur') || '#66cc66',
+            color: getKeyIgnoreCase(extras,'Ligne_couleur') || '#000000',
+            weight: 1, opacity:1, fillOpacity:0.7
+          };
+        },
+        onEachFeature: (feature, layer) => {
+          const cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || '';
+          const extras = extraProperties[cp] || {};
+          const parts = [];
+          ['Texte1','Texte2','Texte3','Texte4'].forEach(f => { const v = getKeyIgnoreCase(extras,f); if(v) parts.push(v); });
+          const tooltip = parts.join(' ');
+          const police = getKeyIgnoreCase(extras,'police couleur') || '#000000';
+          layer.bindTooltip(`<span style="color:${police}">${tooltip || ('Code Postal : ' + cp)}</span>`, {className:'custom-tooltip'});
+          const clic = getKeyIgnoreCase(extras,'Clic URL') || '';
+          if(clic && clic.trim().length) { layer.on('click', ()=> window.open(clic,'_blank')); layer.setStyle({cursor:'pointer'}); }
+        }
+      }).addTo(map);
+      // initial filter
+      updateUI();
+    })
+    .catch(err => { alert(err.message); console.error(err); });
+}
+
+/* ================== init small helpers ================== */
+function setupSelectAllInitial(){
+  filters.forEach(f=> setupSelectAllListener(f));
+}
+
+/* ================== small ready-state UX wiring ================== */
+document.addEventListener('DOMContentLoaded', ()=> {
+  // nothing to do until user loads Excel; but wire toggles text correctly
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    const tgt = btn.getAttribute('data-target');
+    btn.textContent = capitalize(tgt);
+  });
+});
+
+</script>
+</body>
+</html>
