@@ -124,12 +124,22 @@ let distinctValues={region:new Map(), agence:new Map(), antenne:new Map(), dsp:n
 let filterState={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
 let contourVisible=true;
 
-function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; return null; }
+function getKeyIgnoreCase(obj,key){
+  key=key.toLowerCase().replace(/\s+/g,'');
+  for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k];
+  return null;
+}
 
-// ... (toutes les fonctions buildFilterList, updateSelectAllCheckbox, setupSelectAllListener, setupFilterToggleButtons, filterGeoLayer, syncFilters, updateDistinctValues, buildFilterLists identiques à la version précédente) ...
+// ... ⚡ toutes les fonctions buildFilterList, updateSelectAllCheckbox, setupSelectAllListener, setupFilterToggleButtons, filterGeoLayer, syncFilters, updateDistinctValues, buildFilterLists identiques à la version précédente ...
 
-document.getElementById('toggleLeftBtn').addEventListener('click',()=>{ const left=document.getElementById('sidebar-left'); left.style.display=(left.style.display==='none')?'block':'none'; });
-document.getElementById('toggleRightBtn').addEventListener('click',()=>{ const right=document.getElementById('sidebar-right'); right.style.display=(right.style.display==='none')?'block':'none'; });
+document.getElementById('toggleLeftBtn').addEventListener('click',()=>{ 
+  const left=document.getElementById('sidebar-left'); 
+  left.style.display=(left.style.display==='none')?'block':'none'; 
+});
+document.getElementById('toggleRightBtn').addEventListener('click',()=>{ 
+  const right=document.getElementById('sidebar-right'); 
+  right.style.display=(right.style.display==='none')?'block':'none'; 
+});
 
 document.getElementById('contour-cp').addEventListener('change',function(){
   contourVisible=this.checked;
@@ -147,17 +157,26 @@ document.getElementById('uploadExcel').addEventListener('change',()=>{
   document.getElementById('loadingOverlay').classList.remove('hidden');
   const reader=new FileReader();
   reader.onload=e=>{
-    const data=new Uint8Array(e.target.result);
-    const workbook=XLSX.read(data,{type:'array'});
-    const firstSheetName=workbook.SheetNames[0];
-    const sheet=workbook.Sheets[firstSheetName];
-    const jsonData=XLSX.utils.sheet_to_json(sheet);
+    try {
+      const data=new Uint8Array(e.target.result);
+      const workbook=XLSX.read(data,{type:'array'});
+      const firstSheetName=workbook.SheetNames[0];
+      const sheet=workbook.Sheets[firstSheetName];
+      const jsonData=XLSX.utils.sheet_to_json(sheet);
 
-    extraProperties={}; updateDistinctValues(jsonData);
-    jsonData.forEach(item=>{ const cp=(item["Code Postal"]||"").toString(); if(cp.length>0) extraProperties[cp]=item; });
-    Object.keys(distinctValues).forEach(f=>distinctValues[f].forEach((_,val)=>filterState[f].set(val,true)));
-    buildFilterLists(); map.setView([46.6,2.4],6);
-    updateMapWithExtraProperties().finally(()=>document.getElementById('loadingOverlay').classList.add('hidden'));
+      extraProperties={}; updateDistinctValues(jsonData);
+      jsonData.forEach(item=>{ const cp=(item["Code Postal"]||"").toString(); if(cp.length>0) extraProperties[cp]=item; });
+      Object.keys(distinctValues).forEach(f=>distinctValues[f].forEach((_,val)=>filterState[f].set(val,true)));
+      buildFilterLists(); map.setView([46.6,2.4],6);
+
+      updateMapWithExtraProperties().finally(()=>{
+        document.getElementById('loadingOverlay').classList.add('hidden');
+      });
+
+    } catch(err) {
+      console.error("Erreur Excel:",err);
+      document.getElementById('loadingOverlay').classList.add('hidden');
+    }
   };
   reader.readAsArrayBuffer(file);
 });
@@ -188,7 +207,9 @@ function updateMapWithExtraProperties(){
     }).addTo(map);
     filterGeoLayer();
   })
-  .catch(err=>{ console.error(err); map.setView([46.6,2.4],6); });
+  .catch(err=>{
+    console.error("Erreur GeoJSON:",err);
+  });
 }
 </script>
 </body>
