@@ -80,7 +80,7 @@
     <div id="departementList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="texte2">New</button>
+  <button class="toggle-btn" data-target="texte2">Texte2</button>
   <div id="filter-texte2" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Texte2</label>
     <div id="texte2List"></div>
@@ -88,7 +88,7 @@
 </div>
 
 <script>
-var map = L.map('map',{minZoom:6,center:[46.6,2.4],zoom:6});
+var map=L.map('map',{minZoom:6,center:[46.6,2.4],zoom:6});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
 
 let extraProperties={}, geoLayer;
@@ -98,33 +98,43 @@ let filterState={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new 
 function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; return null; }
 
 function buildFilterList(filterName, containerId){
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
-  const mapVals = distinctValues[filterName];
-
-  // Séparer actifs et inactifs
-  const activeVals = [];
-  const inactiveVals = [];
-  mapVals.forEach((_, val)=>{
-    if(filterState[filterName].get(val) !== false) activeVals.push(val);
-    else inactiveVals.push(val);
+  const container=document.getElementById(containerId); container.innerHTML='';
+  const mapVals=distinctValues[filterName];
+  const activeVals=[]; const inactiveVals=[];
+  mapVals.forEach((cpSet,val)=>{
+    let anyVisible=false;
+    cpSet.forEach(cp=>{
+      const extras=extraProperties[cp]||{};
+      let ok=true;
+      if(filterName==='agence'){
+        const regionVal=getKeyIgnoreCase(extras,'région')||'';
+        if(filterState.region.get(regionVal)===false) ok=false;
+      }
+      if(filterName==='antenne'){
+        const agVal=getKeyIgnoreCase(extras,'Agence')||'';
+        if(filterState.agence.get(agVal)===false) ok=false;
+      }
+      if(filterName==='dsp'){
+        const anVal=getKeyIgnoreCase(extras,'Antenne')||'';
+        if(filterState.antenne.get(anVal)===false) ok=false;
+      }
+      if(ok) anyVisible=true;
+    });
+    if(anyVisible) activeVals.push(val); else inactiveVals.push(val);
   });
-
-  // Trier chaque groupe par ordre croissant/alphabetique
-  activeVals.sort((a,b)=>a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
-  inactiveVals.sort((a,b)=>a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
-  const sortedVals = [...activeVals, ...inactiveVals];
+  activeVals.sort((a,b)=>a.localeCompare(b, undefined, {numeric:true,sensitivity:'base'}));
+  inactiveVals.sort((a,b)=>a.localeCompare(b, undefined, {numeric:true,sensitivity:'base'}));
+  const sortedVals=[...activeVals,...inactiveVals];
 
   sortedVals.forEach(val=>{
     const label=document.createElement('label');
-    const checkbox=document.createElement('input');
-    checkbox.type='checkbox';
+    const checkbox=document.createElement('input'); checkbox.type='checkbox';
     if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
-    checkbox.checked = filterState[filterName].get(val)!==false;
+    checkbox.checked=filterState[filterName].get(val)!==false;
+    if(inactiveVals.includes(val)) checkbox.disabled=true;
     checkbox.addEventListener('change',()=>{
       filterState[filterName].set(val,checkbox.checked);
-      filterGeoLayer();
-      updateSelectAllCheckbox(filterName);
+      filterGeoLayer(); updateSelectAllCheckbox(filterName);
     });
     label.appendChild(checkbox);
     label.appendChild(document.createTextNode(' '+val));
@@ -133,20 +143,22 @@ function buildFilterList(filterName, containerId){
 }
 
 function updateSelectAllCheckbox(filterName){
-  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
-  const allValues=Array.from(distinctValues[filterName].keys());
-  const valuesChecked=allValues.map(val=>filterState[filterName].get(val)!==false);
-  selectAllCheckbox.checked=valuesChecked.length>0 && valuesChecked.every(v=>v===true);
-  selectAllCheckbox.indeterminate=valuesChecked.some(v=>v===true) && !selectAllCheckbox.checked;
+  const selectAll=document.getElementById(filterName+'-select-all'); if(!selectAll) return;
+  const allVals=Array.from(distinctValues[filterName].keys());
+  const checkedVals=allVals.map(v=>filterState[filterName].get(v)!==false);
+  selectAll.checked=checkedVals.length>0 && checkedVals.every(v=>v===true);
+  selectAll.indeterminate=checkedVals.some(v=>v===true) && !selectAll.checked;
 }
 
 function setupSelectAllListener(filterName){
-  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
-  selectAllCheckbox.addEventListener('change',()=>{
-    const checked=selectAllCheckbox.checked;
+  const selectAll=document.getElementById(filterName+'-select-all'); if(!selectAll) return;
+  selectAll.addEventListener('change',()=>{
+    const checked=selectAll.checked;
     const container=document.getElementById(filterName+'List'); if(!container) return;
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
-      cb.checked=checked; const val=cb.nextSibling.textContent.trim(); filterState[filterName].set(val,checked);
+      cb.checked=checked;
+      const val=cb.nextSibling.textContent.trim();
+      filterState[filterName].set(val,checked);
     });
     updateSelectAllCheckbox(filterName); filterGeoLayer();
   });
@@ -160,28 +172,31 @@ function setupFilterToggleButtons(){
     btn.addEventListener('click',()=>{
       const el=document.getElementById('filter-'+targetId);
       if(!el) return;
-      if(el.classList.contains('hidden')){ el.classList.remove('hidden'); btn.textContent='Masquer '+capitalizeFirstLetter(targetId); }
-      else{ el.classList.add('hidden'); btn.textContent=capitalizeFirstLetter(targetId); }
+      if(el.classList.contains('hidden')) { el.classList.remove('hidden'); btn.textContent='Masquer '+capitalizeFirstLetter(targetId); }
+      else { el.classList.add('hidden'); btn.textContent=capitalizeFirstLetter(targetId); }
     });
   });
 }
 
 function capitalizeFirstLetter(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
+
 document.getElementById('toggleLeftBtn').addEventListener('click',()=>{ const left=document.getElementById('sidebar-left'); left.style.display=(left.style.display==='none')?'block':'none'; });
 document.getElementById('toggleRightBtn').addEventListener('click',()=>{ const right=document.getElementById('sidebar-right'); right.style.display=(right.style.display==='none')?'block':'none'; });
+
+function isAnyChecked(filterName){ const states=Array.from(filterState[filterName].values()); if(states.length===0) return true; return states.some(v=>v===true); }
 
 function filterGeoLayer(){
   if(!geoLayer) return;
   geoLayer.eachLayer(layer=>{
     const cp=layer.feature.properties.code_postal||layer.feature.properties.codePostal||layer.feature.properties.code||"";
     const extras=extraProperties[cp]||{};
-    const valRegion=getKeyIgnoreCase(extras,"région")||"";
-    const valAgence=getKeyIgnoreCase(extras,"Agence")||"";
-    const valAntenne=getKeyIgnoreCase(extras,"Antenne")||"";
-    const valDSP=getKeyIgnoreCase(extras,"DSP")||"";
-    const valCanalDIS=getKeyIgnoreCase(extras,"Canal DIS")||"";
-    const valDepartement=getKeyIgnoreCase(extras,"Departement")||"";
-    const valTexte2=getKeyIgnoreCase(extras,"Texte2")||"";
+    const valRegion=getKeyIgnoreCase(extras,'région')||'';
+    const valAgence=getKeyIgnoreCase(extras,'Agence')||'';
+    const valAntenne=getKeyIgnoreCase(extras,'Antenne')||'';
+    const valDSP=getKeyIgnoreCase(extras,'DSP')||'';
+    const valCanalDIS=getKeyIgnoreCase(extras,'Canal DIS')||'';
+    const valDepartement=getKeyIgnoreCase(extras,'Departement')||'';
+    const valTexte2=getKeyIgnoreCase(extras,'Texte2')||'';
 
     const show = filterState.region.get(valRegion)!==false &&
                  filterState.agence.get(valAgence)!==false &&
@@ -196,7 +211,7 @@ function filterGeoLayer(){
   syncFilters();
 }
 
-// hiérarchie prioritaire : region > agence > antenne > dsp
+// synchronisation hiérarchie : region>agence>antenne>dsp
 function syncFilters(){
   const hierarchy=['region','agence','antenne','dsp'];
   hierarchy.forEach((filterName,index)=>{
