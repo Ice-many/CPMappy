@@ -40,16 +40,16 @@
     <button id="convertBtn">Conversion JSON et Affichage</button>
   </div>
 
-  <button class="toggle-btn" data-target="agence">Agence</button>
-  <div id="filter-agence" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="agence-select-all" checked> Tout Agences</label>
-    <div id="agenceList"></div>
-  </div>
-
   <button class="toggle-btn" data-target="region">Région</button>
   <div id="filter-region" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="region-select-all" checked> Tout Régions</label>
     <div id="regionList"></div>
+  </div>
+
+  <button class="toggle-btn" data-target="agence">Agence</button>
+  <div id="filter-agence" class="hidden">
+    <label class="selectall-label"><input type="checkbox" id="agence-select-all" checked> Tout Agences</label>
+    <div id="agenceList"></div>
   </div>
 
   <button class="toggle-btn" data-target="antenne">Antenne</button>
@@ -88,15 +88,14 @@
 </div>
 
 <script>
-var map = L.map('map', { minZoom: 6, center: [46.6, 2.4], zoom: 6 });
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap contributors' }).addTo(map);
+var map = L.map('map',{minZoom:6,center:[46.6,2.4],zoom:6});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
 
-let extraProperties = {};
-let geoLayer;
-let distinctValues = { agence:new Map(), region:new Map(), antenne:new Map(), departement:new Map(), texte2:new Map(), dsp:new Map(), canaldis:new Map() };
-let filterState    = { agence:new Map(), region:new Map(), antenne:new Map(), departement:new Map(), texte2:new Map(), dsp:new Map(), canaldis:new Map() };
+let extraProperties={}, geoLayer;
+let distinctValues={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
+let filterState={region:new Map(), agence:new Map(), antenne:new Map(), dsp:new Map(), canaldis:new Map(), departement:new Map(), texte2:new Map()};
 
-function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj){ if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; } return null; }
+function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj) if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; return null; }
 
 function buildFilterList(filterName, containerId){
   const container=document.getElementById(containerId); container.innerHTML='';
@@ -159,31 +158,32 @@ function filterGeoLayer(){
   geoLayer.eachLayer(layer=>{
     const cp=layer.feature.properties.code_postal||layer.feature.properties.codePostal||layer.feature.properties.code||"";
     const extras=extraProperties[cp]||{};
-    const valAgence=getKeyIgnoreCase(extras,"Agence")||"";
     const valRegion=getKeyIgnoreCase(extras,"région")||"";
+    const valAgence=getKeyIgnoreCase(extras,"Agence")||"";
     const valAntenne=getKeyIgnoreCase(extras,"Antenne")||"";
-    const valDepartement=getKeyIgnoreCase(extras,"Departement")||"";
-    const valTexte2=getKeyIgnoreCase(extras,"Texte2")||"";
     const valDSP=getKeyIgnoreCase(extras,"DSP")||"";
     const valCanalDIS=getKeyIgnoreCase(extras,"Canal DIS")||"";
+    const valDepartement=getKeyIgnoreCase(extras,"Departement")||"";
+    const valTexte2=getKeyIgnoreCase(extras,"Texte2")||"";
 
     const show=
-      filterState.agence.get(valAgence)!==false &&
       filterState.region.get(valRegion)!==false &&
+      filterState.agence.get(valAgence)!==false &&
       filterState.antenne.get(valAntenne)!==false &&
-      filterState.departement.get(valDepartement)!==false &&
-      filterState.texte2.get(valTexte2)!==false &&
       filterState.dsp.get(valDSP)!==false &&
-      filterState.canaldis.get(valCanalDIS)!==false;
+      filterState.canaldis.get(valCanalDIS)!==false &&
+      filterState.departement.get(valDepartement)!==false &&
+      filterState.texte2.get(valTexte2)!==false;
 
     if(show) layer.addTo(map); else map.removeLayer(layer);
   });
-  syncFilters(); // met à jour l'état disabled des checkboxes dynamiquement
+  syncFilters();
 }
 
-// Synchronisation des filtres : cases non décochables deviennent disabled
+// hiérarchie prioritaire : region > agence > antenne > dsp
 function syncFilters(){
-  Object.keys(distinctValues).forEach(filterName=>{
+  const hierarchy=['region','agence','antenne','dsp'];
+  hierarchy.forEach((filterName,index)=>{
     const container=document.getElementById(filterName+'List'); if(!container) return;
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
       const val=cb.nextSibling.textContent.trim();
@@ -191,15 +191,13 @@ function syncFilters(){
       let anyVisible=false;
       cpSet.forEach(cp=>{
         const extras=extraProperties[cp]||{};
-        const show=
-          filterState.agence.get(getKeyIgnoreCase(extras,"Agence")||"")!==false &&
-          filterState.region.get(getKeyIgnoreCase(extras,"région")||"")!==false &&
-          filterState.antenne.get(getKeyIgnoreCase(extras,"Antenne")||"")!==false &&
-          filterState.departement.get(getKeyIgnoreCase(extras,"Departement")||"")!==false &&
-          filterState.texte2.get(getKeyIgnoreCase(extras,"Texte2")||"")!==false &&
-          filterState.dsp.get(getKeyIgnoreCase(extras,"DSP")||"")!==false &&
-          filterState.canaldis.get(getKeyIgnoreCase(extras,"Canal DIS")||"")!==false;
-        if(show) anyVisible=true;
+        let ok=true;
+        for(let i=0;i<index;i++){
+          const parentFilter=hierarchy[i];
+          const parentVal=getKeyIgnoreCase(extras,parentFilter==='region'?'région':parentFilter==='agence'?'Agence':parentFilter==='antenne'?'Antenne':'DSP')||"";
+          if(filterState[parentFilter].get(parentVal)===false) ok=false;
+        }
+        if(ok) anyVisible=true;
       });
       cb.disabled=!anyVisible;
     });
@@ -214,23 +212,24 @@ function updateDistinctValues(jsonData){
     const ag=getKeyIgnoreCase(item,"Agence")||"";
     const re=getKeyIgnoreCase(item,"région")||"";
     const an=getKeyIgnoreCase(item,"Antenne")||"";
-    const dep=getKeyIgnoreCase(item,"Departement")||"";
-    const tx2=getKeyIgnoreCase(item,"Texte2")||"";
     const dsp=getKeyIgnoreCase(item,"DSP")||"";
     const canaldis=getKeyIgnoreCase(item,"Canal DIS")||"";
+    const dep=getKeyIgnoreCase(item,"Departement")||"";
+    const tx2=getKeyIgnoreCase(item,"Texte2")||"";
+
     if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag,new Set()); distinctValues.agence.get(ag).add(cp);
     if(!distinctValues.region.has(re)) distinctValues.region.set(re,new Set()); distinctValues.region.get(re).add(cp);
     if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an,new Set()); distinctValues.antenne.get(an).add(cp);
-    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set()); distinctValues.departement.get(dep).add(cp);
-    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2,new Set()); distinctValues.texte2.get(tx2).add(cp);
     if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp,new Set()); distinctValues.dsp.get(dsp).add(cp);
     if(!distinctValues.canaldis.has(canaldis)) distinctValues.canaldis.set(canaldis,new Set()); distinctValues.canaldis.get(canaldis).add(cp);
+    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set()); distinctValues.departement.get(dep).add(cp);
+    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2,new Set()); distinctValues.texte2.get(tx2).add(cp);
   });
 }
 
 function buildFilterLists(){
-  ['agence','region','antenne','departement','texte2','dsp','canaldis'].forEach(f=>buildFilterList(f,f+'List'));
-  ['agence','region','antenne','departement','texte2','dsp','canaldis'].forEach(f=>{ updateSelectAllCheckbox(f); setupSelectAllListener(f); });
+  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(f=>buildFilterList(f,f+'List'));
+  ['region','agence','antenne','dsp','canaldis','departement','texte2'].forEach(f=>{ updateSelectAllCheckbox(f); setupSelectAllListener(f); });
   setupFilterToggleButtons();
 }
 
@@ -245,14 +244,10 @@ document.getElementById('convertBtn').onclick=()=>{
     const sheet=workbook.Sheets[firstSheetName];
     const jsonData=XLSX.utils.sheet_to_json(sheet);
 
-    extraProperties={};
-    updateDistinctValues(jsonData);
+    extraProperties={}; updateDistinctValues(jsonData);
     jsonData.forEach(item=>{ const cp=(item["Code Postal"]||"").toString(); if(cp.length>0) extraProperties[cp]=item; });
-    Object.keys(distinctValues).forEach(filterName=>{ distinctValues[filterName].forEach((_,val)=>{ filterState[filterName].set(val,true); }); });
-    buildFilterLists();
-    map.setView([46.6,2.4],6);
-    updateMapWithExtraProperties();
-    alert("Conversion et affichage réalisés !");
+    Object.keys(distinctValues).forEach(f=>distinctValues[f].forEach((_,val)=>filterState[f].set(val,true)));
+    buildFilterLists(); map.setView([46.6,2.4],6); updateMapWithExtraProperties(); alert("Conversion et affichage réalisés !");
   };
   reader.readAsArrayBuffer(file);
 };
@@ -274,14 +269,13 @@ function updateMapWithExtraProperties(){
         let texteParts=[]; ["Texte1","Texte2","Texte3","Texte4"].forEach(fld=>{ const val=getKeyIgnoreCase(extras,fld); if(val) texteParts.push(val); });
         const tooltipText=texteParts.join(" ");
         const policeCouleur=getKeyIgnoreCase(extras,"police couleur")||'#000000';
-        layer.bindTooltip(`<span style="color: ${policeCouleur};">${tooltipText||("Code Postal : "+cp)}</span>`,{className:'custom-tooltip'});
+        layer.bindTooltip(`<span style="color:${policeCouleur};">${tooltipText||("Code Postal : "+cp)}</span>`,{className:'custom-tooltip'});
         const clicUrl=getKeyIgnoreCase(extras,"Clic URL");
         if(clicUrl && clicUrl.trim().length>0){ layer.on("click",()=>window.open(clicUrl,'_blank')); layer.setStyle({ cursor:"pointer" }); }
       }
     }).addTo(map);
     filterGeoLayer();
-  })
-  .catch(err=>{ alert(err.message); console.error(err); map.setView([46.6,2.4],6); });
+  }).catch(err=>{ alert(err.message); console.error(err); map.setView([46.6,2.4],6); });
 }
 </script>
 </body>
