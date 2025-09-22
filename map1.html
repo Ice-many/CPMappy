@@ -29,14 +29,22 @@
       cursor:pointer;
       user-select:none;
     }
-    #controls{position:sticky;top:0;background:#111;padding:8px;border-bottom:1px solid #444;margin-bottom:8px}
+    #controls{
+      position:sticky;
+      top:0;
+      background:#111;
+      padding:24px 8px 8px 8px; /* décalage vertical de 2 lignes (~16px par ligne + 8px padding) */
+      border-bottom:1px solid #444;
+      margin-bottom:8px;
+      box-sizing: border-box;
+    }
     .hidden{display:none!important}
   </style>
 </head>
 <body>
 
-<button id="toggleLeftBtn" style="position:fixed;left:10px;top:10px;z-index:1300;padding:8px 12px;background:#8a2be2;border-radius:6px;color:#fff;border:0;cursor:pointer">Réseau</button>
-<button id="toggleRightBtn" style="position:fixed;right:10px;top:10px;z-index:1300;padding:8px 12px;background:#8a2be2;border-radius:6px;color:#fff;border:0;cursor:pointer">Nom département</button>
+<button id="toggleLeftBtn" style="position:fixed;left:10px;top:10px;z-index:1300;padding:8px 12px;background:#00bfff;border-radius:6px;color:#fff;border:0;cursor:pointer">Réseau</button>
+<button id="toggleRightBtn" style="position:fixed;right:10px;top:10px;z-index:1300;padding:8px 12px;background:#00bfff;border-radius:6px;color:#fff;border:0;cursor:pointer">Département</button>
 
 <div id="sidebar-left">
   <div id="controls">
@@ -125,10 +133,9 @@ const keyNames = {
   dsp: 'DSP',
   canaldis: 'Canal DIS',
   departement: 'Departement',
-  texte2: 'Nom département'  // Change clé texte2 pour affichage et filtre "Nom département"
+  texte2: 'Nom département'
 };
 
-/* helper: find a key in an object ignoring case/spacing */
 function getKeyIgnoreCase(obj, key){
   if(!obj || typeof obj !== 'object') return null;
   const target = key.toLowerCase().replace(/\s+/g,'');
@@ -174,21 +181,15 @@ function buildFilterList(filterName, containerId){
   (distinctValues[filterName] || new Map()).forEach((cpSet, val) => {
     if(!filterState[filterName].has(val)) filterState[filterName].set(val, true);
     const checked = filterState[filterName].get(val) !== false;
-    const activable = isActivable(filterName, val);
+    let activable = isActivable(filterName, val);
+    if(filterName === 'texte2') activable = true; // Always show all for texte2 "Nom département"
     items.push({val, checked, activable});
   });
-  // For "texte2" (nom département), impose all items are activable to always show full list
-  if(filterName === 'texte2'){
-    items.forEach(item => item.activable = true);
-  }
-
   const groupActivable = items.filter(i => i.activable)
     .sort((a,b) => ((b.checked|0) - (a.checked|0)) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
   const groupNon = items.filter(i => !i.activable)
     .sort((a,b) => ((b.checked|0) - (a.checked|0)) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
-
   const sorted = [...groupActivable, ...groupNon];
-
   sorted.forEach(item => {
     const label = document.createElement('label');
     if(!item.activable) label.classList.add('disabled');
@@ -243,7 +244,6 @@ function filterGeoLayer(){
     const props = layer.feature.properties || {};
     const cp = props.code_postal || props.codePostal || props.code || '';
     const extras = extraProperties[cp] || {};
-
     const checks = {
       region: filterState.region.get( (getKeyIgnoreCase(extras, keyNames.region) || '') ) !== false,
       agence: filterState.agence.get( (getKeyIgnoreCase(extras, keyNames.agence) || '') ) !== false,
@@ -253,7 +253,6 @@ function filterGeoLayer(){
       departement: filterState.departement.get( (getKeyIgnoreCase(extras, keyNames.departement) || '') ) !== false,
       texte2: filterState.texte2.get( (getKeyIgnoreCase(extras, keyNames.texte2) || '') ) !== false
     };
-
     const show = Object.values(checks).every(v => v === true);
     if(show) layer.addTo(map);
     else map.removeLayer(layer);
@@ -293,7 +292,6 @@ function updateDistinctValues(jsonData){
     const canal = getKeyIgnoreCase(row, keyNames.canaldis) || '';
     const dep = getKeyIgnoreCase(row, keyNames.departement) || '';
     const tx2 = getKeyIgnoreCase(row, keyNames.texte2) || '';
-
     if(!distinctValues.region.has(re)) distinctValues.region.set(re, new Set()); distinctValues.region.get(re).add(cp);
     if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag, new Set()); distinctValues.agence.get(ag).add(cp);
     if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an, new Set()); distinctValues.antenne.get(an).add(cp);
@@ -370,7 +368,7 @@ function convertAndDisplay(file) {
     updateUI();
     updateMapWithExtraProperties();
 
-    alert('Fichier converti et affichage initialisé.');
+    // popup supprimé
   };
   reader.readAsArrayBuffer(file);
 }
@@ -412,7 +410,6 @@ function updateMapWithExtraProperties(){
 
 document.addEventListener('DOMContentLoaded', ()=> {
   initialBuildAndListeners();
-
   document.getElementById('uploadExcel').addEventListener('change', (event) => {
     const file = event.target.files[0];
     convertAndDisplay(file);
