@@ -80,7 +80,7 @@
     <div id="departementList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="texte2">Nom département</button>
+  <button class="toggle-btn" data-target="texte2">Nom</button>
   <div id="filter-texte2" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Texte2</label>
     <div id="texte2List"></div>
@@ -93,43 +93,42 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18,
 
 let extraProperties = {};
 let geoLayer;
-
 let distinctValues = { agence:new Map(), region:new Map(), antenne:new Map(), departement:new Map(), texte2:new Map(), dsp:new Map(), canaldis:new Map() };
 let filterState    = { agence:new Map(), region:new Map(), antenne:new Map(), departement:new Map(), texte2:new Map(), dsp:new Map(), canaldis:new Map() };
 
 function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj){ if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; } return null; }
 
 function buildFilterList(filterName, containerId){
-  const container = document.getElementById(containerId); container.innerHTML='';
-  const mapVals = distinctValues[filterName];
+  const container=document.getElementById(containerId); container.innerHTML='';
+  const mapVals=distinctValues[filterName];
   Array.from(mapVals.keys()).sort().forEach(val=>{
-    const label = document.createElement('label');
-    const checkbox = document.createElement('input');
-    checkbox.type='checkbox';
+    const label=document.createElement('label');
+    const checkbox=document.createElement('input'); checkbox.type='checkbox';
     if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
-    checkbox.checked = filterState[filterName].get(val)!==false;
-    checkbox.addEventListener('change',()=>{ 
-      filterState[filterName].set(val,checkbox.checked); 
-      filterGeoLayer(); 
-      updateSelectAllCheckbox(filterName); 
+    checkbox.checked=filterState[filterName].get(val)!==false;
+    checkbox.addEventListener('change',()=>{
+      filterState[filterName].set(val,checkbox.checked);
+      filterGeoLayer();
+      updateSelectAllCheckbox(filterName);
     });
-    label.appendChild(checkbox); label.appendChild(document.createTextNode(' '+val)); container.appendChild(label);
+    label.appendChild(checkbox); label.appendChild(document.createTextNode(' '+val));
+    container.appendChild(label);
   });
 }
 
 function updateSelectAllCheckbox(filterName){
-  const selectAllCheckbox = document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
-  const allValues = Array.from(distinctValues[filterName].keys());
-  const valuesChecked = allValues.map(val=>filterState[filterName].get(val)!==false);
-  selectAllCheckbox.checked = valuesChecked.length>0 && valuesChecked.every(v=>v===true);
-  selectAllCheckbox.indeterminate = valuesChecked.some(v=>v===true) && !selectAllCheckbox.checked;
+  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
+  const allValues=Array.from(distinctValues[filterName].keys());
+  const valuesChecked=allValues.map(val=>filterState[filterName].get(val)!==false);
+  selectAllCheckbox.checked=valuesChecked.length>0 && valuesChecked.every(v=>v===true);
+  selectAllCheckbox.indeterminate=valuesChecked.some(v=>v===true) && !selectAllCheckbox.checked;
 }
 
 function setupSelectAllListener(filterName){
-  const selectAllCheckbox = document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
+  const selectAllCheckbox=document.getElementById(filterName+'-select-all'); if(!selectAllCheckbox) return;
   selectAllCheckbox.addEventListener('change',()=>{
-    const checked = selectAllCheckbox.checked;
-    const container = document.getElementById(filterName+'List'); if(!container) return;
+    const checked=selectAllCheckbox.checked;
+    const container=document.getElementById(filterName+'List'); if(!container) return;
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
       cb.checked=checked; const val=cb.nextSibling.textContent.trim(); filterState[filterName].set(val,checked);
     });
@@ -138,7 +137,7 @@ function setupSelectAllListener(filterName){
 }
 
 function setupFilterToggleButtons(){
-  const buttons = document.querySelectorAll('.toggle-btn');
+  const buttons=document.querySelectorAll('.toggle-btn');
   buttons.forEach(btn=>{
     const targetId=btn.getAttribute('data-target');
     btn.textContent=capitalizeFirstLetter(targetId);
@@ -156,11 +155,8 @@ function capitalizeFirstLetter(str){ return str.charAt(0).toUpperCase()+str.slic
 document.getElementById('toggleLeftBtn').addEventListener('click',()=>{ const left=document.getElementById('sidebar-left'); left.style.display=(left.style.display==='none')?'block':'none'; });
 document.getElementById('toggleRightBtn').addEventListener('click',()=>{ const right=document.getElementById('sidebar-right'); right.style.display=(right.style.display==='none')?'block':'none'; });
 
-function isAnyChecked(filterName){ const states=Array.from(filterState[filterName].values()); if(states.length===0) return true; return states.some(v=>v===true); }
-
 function filterGeoLayer(){
   if(!geoLayer) return;
-  let visibleCPs=new Set();
   geoLayer.eachLayer(layer=>{
     const cp=layer.feature.properties.code_postal||layer.feature.properties.codePostal||layer.feature.properties.code||"";
     const extras=extraProperties[cp]||{};
@@ -181,20 +177,18 @@ function filterGeoLayer(){
       filterState.dsp.get(valDSP)!==false &&
       filterState.canaldis.get(valCanalDIS)!==false;
 
-    if(show){ layer.addTo(map); visibleCPs.add(cp); } else{ map.removeLayer(layer); }
+    if(show) layer.addTo(map); else map.removeLayer(layer);
   });
-  syncFilters(visibleCPs);
+  syncFilters(); // mise à jour des états (activation seulement, pas décocher)
 }
 
-function syncFilters(visibleCPs){
+function syncFilters(){
   Object.keys(distinctValues).forEach(filterName=>{
     const container=document.getElementById(filterName+'List'); if(!container) return;
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
       const val=cb.nextSibling.textContent.trim();
       const cpSet=distinctValues[filterName].get(val)||new Set();
-      const hasVisible=Array.from(cpSet).some(cp=>visibleCPs.has(cp));
-      cb.disabled=!hasVisible;
-      if(!hasVisible){ cb.checked=false; filterState[filterName].set(val,false); }
+      cb.disabled=cpSet.size===0; // seulement désactiver si pas du tout dans le dataset
     });
     updateSelectAllCheckbox(filterName);
   });
@@ -280,4 +274,3 @@ function updateMapWithExtraProperties(){
 </script>
 </body>
 </html>
-
