@@ -96,16 +96,10 @@
       user-select: none;
       box-shadow: 0 2px 8px rgba(0,191,255,0.7);
       color: white;
-      background-color: #00bfff;
-      transition: background-color 0.3s ease;
-    }
-    #toggleLeftBtn.violet, #toggleRightBtn.violet {
-      background-color: #6a0dad !important;
-      box-shadow: 0 2px 8px rgba(106,13,173,0.7) !important;
+      background-color: #6a0dad;
     }
     #toggleLeftBtn { left: 10px; }
     #toggleRightBtn { right: 10px; }
-
     .hidden { display: none !important; }
   </style>
 </head>
@@ -206,45 +200,94 @@ function getKeyIgnoreCase(obj, key) {
   return null;
 }
 
-function buildFilterList(filterName, containerId) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
-  const mapVals = distinctValues[filterName];
-  const sortedVals = Array.from(mapVals.keys()).sort((a,b) => a.localeCompare(b, undefined, {ignorePunctuation: true}));
-  sortedVals.forEach(val => {
-    const cpSet = mapVals.get(val);
-    const label = document.createElement('label');
-    label.title = `${cpSet.size} codes postaux`;
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    // Mettre état à true si pas présent encore dans filterState
-    if (!filterState[filterName].has(val)) {
-      filterState[filterName].set(val, true);
+function updateDynamicFiltersAndCarte() {
+  // 1. On récupère tous les codes postaux valides selon l'état actuel des filtres
+  let validCPs = [];
+  for (const cp in extraProperties) {
+    const ex = extraProperties[cp];
+    if (!ex) continue;
+    const f = {
+      agence: getKeyIgnoreCase(ex, "Agence") || "",
+      region: getKeyIgnoreCase(ex, "région") || "",
+      antenne: getKeyIgnoreCase(ex, "Antenne") || "",
+      departement: getKeyIgnoreCase(ex, "Departement") || "",
+      texte2: getKeyIgnoreCase(ex, "Texte2") || "",
+      dsp: getKeyIgnoreCase(ex, "DSP") || "",
+      canaldis: getKeyIgnoreCase(ex, "Canal DIS") || ""
+    };
+    let keep = true;
+    for (const key of Object.keys(f)) {
+      if (filterState[key].has(f[key]) && filterState[key].get(f[key]) === false) {
+        keep = false;
+        break;
+      }
     }
-    checkbox.checked = filterState[filterName].get(val) !== false;
+    if (keep) validCPs.push(cp);
+  }
 
-    checkbox.addEventListener('change', () => {
-      filterState[filterName].set(val, checkbox.checked);
-      filterGeoLayer();
-      updateSelectAllCheckbox(filterName);
-    });
-
-    label.appendChild(checkbox);
-    label.appendChild(document.createTextNode(' ' + val));
-    container.appendChild(label);
+  // 2. Recalculer pour chaque filtre les valeurs distinctes des CP actuellement valides
+  let visibleOptions = {};
+  Object.keys(distinctValues).forEach(filter => {
+    visibleOptions[filter] = new Set();
   });
+  validCPs.forEach(cp => {
+    const ex = extraProperties[cp];
+    if (!ex) return;
+    Object.keys(distinctValues).forEach(filter => {
+      visibleOptions[filter].add(getKeyIgnoreCase(ex, filter.charAt(0).toUpperCase()+filter.slice(1)) || "");
+    });
+  });
+
+  // 3. Pour chaque filtre :
+  Object.keys(distinctValues).forEach(filter => {
+    const container = document.getElementById(filter + 'List');
+    if (!container) return;
+    // Les valeurs distinctes permises
+    const allowed = visibleOptions[filter];
+    const allVals = Array.from(distinctValues[filter].keys());
+
+    // On reconstruit la liste pour la synchro/précision complète
+    container.innerHTML = "";
+    allVals.forEach(val => {
+      if (!allowed.has(val)) return; // masquer tout ce qui ne correspond plus
+      const label = document.createElement('label');
+      label.title = `${distinctValues[filter].get(val).size} codes postaux`;
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = filterState[filter].get(val)!==false;
+      checkbox.addEventListener('change', () => {
+        filterState[filter].set(val, checkbox.checked);
+        updateDynamicFiltersAndCarte();
+      });
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(' ' + val));
+      container.appendChild(label);
+    });
+    updateSelectAllCheckbox(filter);
+  });
+
+  // 4. Mettre à jour l'affichage sur la carte
+  if (geoLayer) {
+    geoLayer.eachLayer(layer => {
+      let cp = layer.feature.properties.code_postal || layer.feature.properties.codePostal || layer.feature.properties.code || "";
+      if (validCPs.includes(cp)) {
+        layer.addTo(map);
+      } else {
+        map.removeLayer(layer);
+      }
+    });
+  }
 }
 
 function updateSelectAllCheckbox(filterName) {
   const selectAllCheckbox = document.getElementById(filterName + '-select-all');
   if(!selectAllCheckbox) return;
+  const checkboxes = document.getElementById(filterName + 'List').querySelectorAll('input[type="checkbox"]');
+  let allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+  let someChecked = Array.from(checkboxes).some(cb => cb.checked);
 
-  const allValues = Array.from(distinctValues[filterName].keys());
-  const valuesChecked = allValues.map(val => filterState[filterName].get(val) !== false);
-
-  selectAllCheckbox.checked = valuesChecked.length > 0 && valuesChecked.every(v => v === true);
-  selectAllCheckbox.indeterminate = valuesChecked.some(v => v === true) && !selectAllCheckbox.checked;
+  selectAllCheckbox.checked = allChecked;
+  selectAllCheckbox.indeterminate = someChecked && !allChecked;
 }
 
 function setupSelectAllListener(filterName) {
@@ -252,18 +295,13 @@ function setupSelectAllListener(filterName) {
   if(!selectAllCheckbox) return;
   selectAllCheckbox.addEventListener('change', () => {
     const checked = selectAllCheckbox.checked;
-
     const container = document.getElementById(filterName + 'List');
-    if(!container) return;
-
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
       cb.checked = checked;
       const val = cb.nextSibling.textContent.trim();
       filterState[filterName].set(val, checked);
     });
-
-    updateSelectAllCheckbox(filterName);
-    filterGeoLayer();
+    updateDynamicFiltersAndCarte();
   });
 }
 
@@ -299,56 +337,6 @@ document.getElementById('toggleRightBtn').addEventListener('click', () => {
   const right = document.getElementById('sidebar-right');
   right.style.display = (right.style.display === 'none') ? 'block' : 'none';
 });
-
-function isAnyChecked(filterName) {
-  const states = Array.from(filterState[filterName].values());
-  if(states.length === 0) return true;
-  return states.some(v => v === true);
-}
-
-function filterGeoLayer() {
-  if (!geoLayer) return;
-  geoLayer.eachLayer(layer => {
-    let cp = layer.feature.properties.code_postal || layer.feature.properties.codePostal || layer.feature.properties.code || "";
-    let extras = extraProperties[cp] || {};
-
-    let valAgence = getKeyIgnoreCase(extras, "Agence") || "";
-    let valRegion = getKeyIgnoreCase(extras, "région") || "";
-    let valAntenne = getKeyIgnoreCase(extras, "Antenne") || "";
-    let valDepartement = getKeyIgnoreCase(extras, "Departement") || "";
-    let valTexte2 = getKeyIgnoreCase(extras, "Texte2") || "";
-    let valDSP = getKeyIgnoreCase(extras, "DSP") || "";
-    let valCanalDIS = getKeyIgnoreCase(extras, "Canal DIS") || "";
-
-    if (
-      !isAnyChecked("agence") ||
-      !isAnyChecked("region") ||
-      !isAnyChecked("antenne") ||
-      !isAnyChecked("departement") ||
-      !isAnyChecked("texte2") ||
-      !isAnyChecked("dsp") ||
-      !isAnyChecked("canaldis")
-    ) {
-      layer.remove();
-      return;
-    }
-
-    let show =
-      filterState.agence.get(valAgence) !== false &&
-      filterState.region.get(valRegion) !== false &&
-      filterState.antenne.get(valAntenne) !== false &&
-      filterState.departement.get(valDepartement) !== false &&
-      filterState.texte2.get(valTexte2) !== false &&
-      filterState.dsp.get(valDSP) !== false &&
-      filterState.canaldis.get(valCanalDIS) !== false;
-
-    if (show) {
-      layer.addTo(map);
-    } else {
-      map.removeLayer(layer);
-    }
-  });
-}
 
 function updateDistinctValues(jsonData) {
   for (const key in distinctValues) {
@@ -395,12 +383,9 @@ function buildFilterLists() {
   ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp', 'canaldis'].forEach(filter => {
     buildFilterList(filter, filter + 'List');
   });
-
   ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp', 'canaldis'].forEach(filt => {
-    updateSelectAllCheckbox(filt);
     setupSelectAllListener(filt);
   });
-
   setupFilterToggleButtons();
 }
 
@@ -427,7 +412,7 @@ document.getElementById('convertBtn').onclick = () => {
       if (cp.length > 0) extraProperties[cp] = item;
     });
 
-    // Initialise les états des filtres à true
+    // Initialise tous les filtres à true
     Object.keys(distinctValues).forEach(filterName => {
       distinctValues[filterName].forEach((_, val) => {
         filterState[filterName].set(val, true);
@@ -485,7 +470,7 @@ function updateMapWithExtraProperties() {
           }
         }
       }).addTo(map);
-      filterGeoLayer();
+      updateDynamicFiltersAndCarte();
     })
     .catch(err => {
       alert(err.message);
