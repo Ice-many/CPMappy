@@ -80,10 +80,10 @@
     <div id="departementList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="texte2">Texte2</button>
-  <div id="filter-texte2" class="hidden">
-    <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Texte2</label>
-    <div id="texte2List"></div>
+  <button class="toggle-btn" data-target="Nom departement">Nom departement</button>
+  <div id="filter-Nom departement" class="hidden">
+    <label class="selectall-label"><input type="checkbox" id="Nom departement-select-all" checked> Tout Nom departement</label>
+    <div id="Nom departementList"></div>
   </div>
 </div>
 
@@ -94,8 +94,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18,
 let extraProperties = {};
 let geoLayer;
 
-let distinctValues = { agence:new Map(), region:new Map(), antenne:new Map(), departement:new Map(), texte2:new Map(), dsp:new Map(), canaldis:new Map() };
-let filterState    = { agence:new Map(), region:new Map(), antenne:new Map(), departement:new Map(), texte2:new Map(), dsp:new Map(), canaldis:new Map() };
+let distinctValues = { agence:new Map(), region:new Map(), antenne:new Map(), departement:new Map(), Nom departement:new Map(), dsp:new Map(), canaldis:new Map() };
+let filterState    = { agence:new Map(), region:new Map(), antenne:new Map(), departement:new Map(), Nom departement:new Map(), dsp:new Map(), canaldis:new Map() };
 
 function getKeyIgnoreCase(obj,key){ key=key.toLowerCase().replace(/\s+/g,''); for(const k in obj){ if(k.toLowerCase().replace(/\s+/g,'')===key) return obj[k]; } return null; }
 
@@ -108,7 +108,11 @@ function buildFilterList(filterName, containerId){
     checkbox.type='checkbox';
     if(!filterState[filterName].has(val)) filterState[filterName].set(val,true);
     checkbox.checked = filterState[filterName].get(val)!==false;
-    checkbox.addEventListener('change',()=>{ filterState[filterName].set(val,checkbox.checked); filterGeoLayer(); updateSelectAllCheckbox(filterName); });
+    checkbox.addEventListener('change',()=>{ 
+      filterState[filterName].set(val,checkbox.checked); 
+      filterGeoLayer(); 
+      updateSelectAllCheckbox(filterName); 
+    });
     label.appendChild(checkbox); label.appendChild(document.createTextNode(' '+val)); container.appendChild(label);
   });
 }
@@ -164,17 +168,19 @@ function filterGeoLayer(){
     const valRegion=getKeyIgnoreCase(extras,"région")||"";
     const valAntenne=getKeyIgnoreCase(extras,"Antenne")||"";
     const valDepartement=getKeyIgnoreCase(extras,"Departement")||"";
-    const valTexte2=getKeyIgnoreCase(extras,"Texte2")||"";
+    const valNom departement=getKeyIgnoreCase(extras,"Nom departement")||"";
     const valDSP=getKeyIgnoreCase(extras,"DSP")||"";
     const valCanalDIS=getKeyIgnoreCase(extras,"Canal DIS")||"";
+
     const show=
       filterState.agence.get(valAgence)!==false &&
       filterState.region.get(valRegion)!==false &&
       filterState.antenne.get(valAntenne)!==false &&
       filterState.departement.get(valDepartement)!==false &&
-      filterState.texte2.get(valTexte2)!==false &&
+      filterState.Nom departement.get(valNom departement)!==false &&
       filterState.dsp.get(valDSP)!==false &&
       filterState.canaldis.get(valCanalDIS)!==false;
+
     if(show){ layer.addTo(map); visibleCPs.add(cp); } else{ map.removeLayer(layer); }
   });
   syncFilters(visibleCPs);
@@ -202,32 +208,22 @@ function updateDistinctValues(jsonData){
     const re=getKeyIgnoreCase(item,"région")||"";
     const an=getKeyIgnoreCase(item,"Antenne")||"";
     const dep=getKeyIgnoreCase(item,"Departement")||"";
-    const tx2=getKeyIgnoreCase(item,"Texte2")||"";
+    const tx2=getKeyIgnoreCase(item,"Nom departement")||"";
     const dsp=getKeyIgnoreCase(item,"DSP")||"";
     const canaldis=getKeyIgnoreCase(item,"Canal DIS")||"";
-    if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag,new Set());
-    distinctValues.agence.get(ag).add(cp);
-    if(!distinctValues.region.has(re)) distinctValues.region.set(re,new Set());
-    distinctValues.region.get(re).add(cp);
-    if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an,new Set());
-    distinctValues.antenne.get(an).add(cp);
-    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set());
-    distinctValues.departement.get(dep).add(cp);
-    if(!distinctValues.texte2.has(tx2)) distinctValues.texte2.set(tx2,new Set());
-    distinctValues.texte2.get(tx2).add(cp);
-    if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp,new Set());
-    distinctValues.dsp.get(dsp).add(cp);
-    if(!distinctValues.canaldis.has(canaldis)) distinctValues.canaldis.set(canaldis,new Set());
-    distinctValues.canaldis.get(canaldis).add(cp);
+    if(!distinctValues.agence.has(ag)) distinctValues.agence.set(ag,new Set()); distinctValues.agence.get(ag).add(cp);
+    if(!distinctValues.region.has(re)) distinctValues.region.set(re,new Set()); distinctValues.region.get(re).add(cp);
+    if(!distinctValues.antenne.has(an)) distinctValues.antenne.set(an,new Set()); distinctValues.antenne.get(an).add(cp);
+    if(!distinctValues.departement.has(dep)) distinctValues.departement.set(dep,new Set()); distinctValues.departement.get(dep).add(cp);
+    if(!distinctValues.Nom departement.has(tx2)) distinctValues.Nom departement.set(tx2,new Set()); distinctValues.Nom departement.get(tx2).add(cp);
+    if(!distinctValues.dsp.has(dsp)) distinctValues.dsp.set(dsp,new Set()); distinctValues.dsp.get(dsp).add(cp);
+    if(!distinctValues.canaldis.has(canaldis)) distinctValues.canaldis.set(canaldis,new Set()); distinctValues.canaldis.get(canaldis).add(cp);
   });
 }
 
 function buildFilterLists(){
-  ['agence','region','antenne','departement','texte2','dsp','canaldis'].forEach(f=>buildFilterList(f,f+'List'));
-  ['agence','region','antenne','departement','texte2','dsp','canaldis'].forEach(f=>{
-    updateSelectAllCheckbox(f);
-    setupSelectAllListener(f);
-  });
+  ['agence','region','antenne','departement','Nom departement','dsp','canaldis'].forEach(f=>buildFilterList(f,f+'List'));
+  ['agence','region','antenne','departement','Nom departement','dsp','canaldis'].forEach(f=>{ updateSelectAllCheckbox(f); setupSelectAllListener(f); });
   setupFilterToggleButtons();
 }
 
@@ -244,16 +240,8 @@ document.getElementById('convertBtn').onclick=()=>{
 
     extraProperties={};
     updateDistinctValues(jsonData);
-
-    jsonData.forEach(item=>{
-      const cp=(item["Code Postal"]||"").toString();
-      if(cp.length>0) extraProperties[cp]=item;
-    });
-
-    Object.keys(distinctValues).forEach(filterName=>{
-      distinctValues[filterName].forEach((_,val)=>{ filterState[filterName].set(val,true); });
-    });
-
+    jsonData.forEach(item=>{ const cp=(item["Code Postal"]||"").toString(); if(cp.length>0) extraProperties[cp]=item; });
+    Object.keys(distinctValues).forEach(filterName=>{ distinctValues[filterName].forEach((_,val)=>{ filterState[filterName].set(val,true); }); });
     buildFilterLists();
     map.setView([46.6,2.4],6);
     updateMapWithExtraProperties();
@@ -277,7 +265,7 @@ function updateMapWithExtraProperties(){
         const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
         const extras=extraProperties[cp]||{};
         let texteParts=[];
-        ["Texte1","Texte2","Texte3","Texte4"].forEach(field=>{ const val=getKeyIgnoreCase(extras,field); if(val) texteParts.push(val); });
+        ["Texte1","Nom departement","Texte3","Texte4"].forEach(field=>{ const val=getKeyIgnoreCase(extras,field); if(val) texteParts.push(val); });
         let tooltipText=texteParts.join(" ");
         let policeCouleur=getKeyIgnoreCase(extras,"police couleur")||'#000000';
         layer.bindTooltip(`<span style="color: ${policeCouleur};">${tooltipText||("Code Postal : "+cp)}</span>`,{className:'custom-tooltip'});
