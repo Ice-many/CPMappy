@@ -30,7 +30,7 @@
 <div id="sidebar-left">
   <div id="controls">
     <input id="uploadExcel" type="file" accept=".xlsx" />
-    <button id="convertBtn">Conversion JSON et affichage</button>
+    <!-- Bouton "Conversion JSON et affichage" retiré pour conversion automatique -->
   </div>
 
   <button class="toggle-btn" data-target="region">Région</button>
@@ -78,6 +78,14 @@
     <label class="selectall-label"><input id="texte2-select-all" type="checkbox" checked> Tout Texte2</label>
     <div id="texte2List"></div>
   </div>
+
+  <!-- Nouvelle case à cocher "Contour" -->
+  <div style="margin-top:16px; border-top:1px solid #444; padding-top:8px;">
+    <label>
+      <input type="checkbox" id="contourCheckbox" checked />
+      Contour
+    </label>
+  </div>
 </div>
 
 <script>
@@ -122,43 +130,28 @@ function getKeyIgnoreCase(obj, key){
   return null;
 }
 
-/* ================== Activabilité (priorités) ==================
-   - For hierarchical filters (region/agence/antenne/dsp):
-       an option is "activable" if there exists at least one CP in its set
-       such that:
-         * all PARENTS (higher-priority filters) allow that CP's parent-values
-         * all INDEPENDENT filters allow that CP's independent-values
-       (we IGNORE lower-priority filters when computing activability)
-   - For independent filters: activable if it exists in dataset (non-empty)
-*/
+/* ================== Activabilité (priorités) ================== */
 function isActivable(filterName, val){
   const cpSet = distinctValues[filterName].get(val) || new Set();
   if(cpSet.size === 0) return false;
 
   if(independents.includes(filterName)){
-    // independent filter: always activable if it exists
     return cpSet.size > 0;
   }
 
-  // hierarchical filter
   const idx = hierarchy.indexOf(filterName);
   const parents = (idx > -1) ? hierarchy.slice(0, idx) : [];
   for(const cp of cpSet){
     const extras = extraProperties[cp] || {};
     let ok = true;
-
-    // check parent filters (must be allowed)
     for(const p of parents){
       const parentKey = keyNames[p];
       const parentVal = getKeyIgnoreCase(extras, parentKey) || '';
-      // if parentVal is unknown in filterState, treat as allowed (default true)
       if(filterState[p].has(parentVal) && filterState[p].get(parentVal) === false){
         ok = false; break;
       }
     }
     if(!ok) continue;
-
-    // check independent filters (must be allowed)
     for(const ind of independents){
       const indKey = keyNames[ind];
       const indVal = getKeyIgnoreCase(extras, indKey) || '';
@@ -171,32 +164,26 @@ function isActivable(filterName, val){
   return false;
 }
 
-/* ================== Construction et tri des listes ==================
-   - priorité d'affichage : 1) activable, 2) non-activable
-   - dans chaque groupe : checked (true) d'abord, puis tri alphabétique
-*/
+/* ================== Construction et tri des listes ================== */
 function buildFilterList(filterName, containerId){
   const container = document.getElementById(containerId);
   container.innerHTML = '';
 
-  // collect values
   const items = [];
   (distinctValues[filterName] || new Map()).forEach((cpSet, val) => {
-    if(!filterState[filterName].has(val)) filterState[filterName].set(val, true); // default true
+    if(!filterState[filterName].has(val)) filterState[filterName].set(val, true);
     const checked = filterState[filterName].get(val) !== false;
     const activable = isActivable(filterName, val);
     items.push({val, checked, activable});
   });
 
-  // split & sort
   const groupActivable = items.filter(i => i.activable)
-    .sort((a,b) => ( (b.checked|0) - (a.checked|0) ) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
+    .sort((a,b) => ((b.checked|0) - (a.checked|0)) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
   const groupNon = items.filter(i => !i.activable)
-    .sort((a,b) => ( (b.checked|0) - (a.checked|0) ) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
+    .sort((a,b) => ((b.checked|0) - (a.checked|0)) || a.val.localeCompare(b.val, undefined, {numeric:true, sensitivity:'base'}));
 
   const sorted = [...groupActivable, ...groupNon];
 
-  // render
   sorted.forEach(item => {
     const label = document.createElement('label');
     if(!item.activable) label.classList.add('disabled');
@@ -204,10 +191,9 @@ function buildFilterList(filterName, containerId){
     checkbox.type = 'checkbox';
     checkbox.checked = item.checked;
     checkbox.disabled = !item.activable;
-    // when user toggles a checkbox -> update states and fully refresh UI
     checkbox.addEventListener('change', () => {
       filterState[filterName].set(item.val, checkbox.checked);
-      updateUI(); // central update
+      updateUI();
     });
     label.appendChild(checkbox);
     label.appendChild(document.createTextNode(' ' + item.val));
@@ -215,7 +201,7 @@ function buildFilterList(filterName, containerId){
   });
 }
 
-/* ================== Select-all behavior (only apply to activable checkboxes) ================== */
+/* ================== Select-all behavior ================== */
 let selectAllInitialized = false;
 function setupSelectAllListener(filterName){
   if(selectAllInitialized && document.getElementById(filterName+'-select-all').dataset.init === '1') return;
@@ -226,7 +212,7 @@ function setupSelectAllListener(filterName){
     const container = document.getElementById(filterName + 'List');
     if(!container) return;
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
-      if(cb.disabled) return; // don't toggle disabled ones
+      if(cb.disabled) return;
       cb.checked = checked;
       const val = cb.nextSibling.textContent.trim();
       filterState[filterName].set(val, cb.checked);
@@ -272,18 +258,31 @@ function filterGeoLayer(){
   });
 }
 
-/* central update: refresh map, then rebuild lists (so disabled/ordering updated), then update selectAll states */
+/* ================== Mise à jour des styles du contour selon checkbox ================== */
+function updateContourStyleOnGeoLayer(weight) {
+  if(!geoLayer) return;
+  geoLayer.setStyle(feature => {
+    const cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || '';
+    const extras = extraProperties[cp] || {};
+    return {
+      fillColor: getKeyIgnoreCase(extras,'Fond_couleur') || '#66cc66',
+      color: getKeyIgnoreCase(extras,'Ligne_couleur') || '#000000',
+      weight: weight,
+      opacity: 1,
+      fillOpacity: 0.7
+    };
+  });
+}
+
+/* central update: refresh map, then rebuild lists, then update selectAll states */
 function updateUI(){
   filterGeoLayer();
-  // rebuild ALL lists (so ordering & disabled reflect current state)
   filters.forEach(f => buildFilterList(f, f + 'List'));
-  // update selectAll states
   filters.forEach(f => updateSelectAllCheckbox(f));
 }
 
 /* ================ Helpers to populate distinctValues from Excel data ================ */
 function updateDistinctValues(jsonData){
-  // reset
   for(const k in distinctValues){ distinctValues[k].clear(); filterState[k].clear(); }
   jsonData.forEach(row => {
     const cp = (row["Code Postal"] || row["code_postal"] || row["codePostal"] || '').toString().trim();
@@ -308,12 +307,10 @@ function updateDistinctValues(jsonData){
 
 /* ================== Build initial lists & attach listeners once ================== */
 function initialBuildAndListeners(){
-  // build lists once
   filters.forEach(f => buildFilterList(f, f + 'List'));
-  // setup selectAll listeners once
   filters.forEach(f => setupSelectAllListener(f));
   selectAllInitialized = true;
-  // setup toggle buttons
+
   document.querySelectorAll('.toggle-btn').forEach(btn=>{
     const tgt = btn.getAttribute('data-target');
     btn.textContent = capitalize(tgt);
@@ -324,21 +321,31 @@ function initialBuildAndListeners(){
       btn.textContent = el.classList.contains('hidden') ? capitalize(tgt) : ('Masquer ' + capitalize(tgt));
     });
   });
-  // wire top toggle buttons
+
   document.getElementById('toggleLeftBtn').addEventListener('click', ()=> {
-    const left = document.getElementById('sidebar-left'); left.style.display = (left.style.display === 'none') ? 'block' : 'none';
+    const left = document.getElementById('sidebar-left');
+    left.style.display = (left.style.display === 'none') ? 'block' : 'none';
   });
   document.getElementById('toggleRightBtn').addEventListener('click', ()=> {
-    const right = document.getElementById('sidebar-right'); right.style.display = (right.style.display === 'none') ? 'block' : 'none';
+    const right = document.getElementById('sidebar-right');
+    right.style.display = (right.style.display === 'none') ? 'block' : 'none';
+  });
+
+  // Listener case "Contour"
+  const contourCheckbox = document.getElementById('contourCheckbox');
+  contourCheckbox.addEventListener('change', () => {
+    if(contourCheckbox.checked){
+      updateContourStyleOnGeoLayer(1);
+    } else {
+      updateContourStyleOnGeoLayer(0);
+    }
   });
 }
 
 function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
 
-/* ================== Convert Excel -> JSON and init ================== */
-document.getElementById('convertBtn').addEventListener('click', () => {
-  const fileInput = document.getElementById('uploadExcel');
-  const file = fileInput.files[0];
+/* ================== Convert Excel -> JSON and init automatiquement ================== */
+function convertAndDisplay(file) {
   if(!file){ alert('Sélectionne un fichier .xlsx'); return; }
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -348,7 +355,6 @@ document.getElementById('convertBtn').addEventListener('click', () => {
     const sheet = workbook.Sheets[first];
     const jsonData = XLSX.utils.sheet_to_json(sheet, {defval: ''});
 
-    // store rows keyed by CP for quick lookup
     extraProperties = {};
     jsonData.forEach(row => {
       const cp = (row["Code Postal"] || row["code_postal"] || row["codePostal"] || '').toString().trim();
@@ -357,21 +363,20 @@ document.getElementById('convertBtn').addEventListener('click', () => {
 
     updateDistinctValues(jsonData);
 
-    // init filterState default true for all values
     Object.keys(distinctValues).forEach(k => {
       distinctValues[k].forEach((_, val) => {
         filterState[k].set(val, true);
       });
     });
 
-    // initial UI build
-    initialBuildAndListeners();
-    updateMapWithExtraProperties();
+    filters.forEach(f => buildFilterList(f, f + 'List'));
     updateUI();
+    updateMapWithExtraProperties();
+
     alert('Fichier converti et affichage initialisé.');
   };
   reader.readAsArrayBuffer(file);
-});
+}
 
 /* ================== Load GeoJSON and add to map ================== */
 function updateMapWithExtraProperties(){
@@ -383,10 +388,13 @@ function updateMapWithExtraProperties(){
         style: feature => {
           const cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || '';
           const extras = extraProperties[cp] || {};
+          const contourWeight = document.getElementById('contourCheckbox')?.checked ? 1 : 0;
           return {
             fillColor: getKeyIgnoreCase(extras,'Fond_couleur') || '#66cc66',
             color: getKeyIgnoreCase(extras,'Ligne_couleur') || '#000000',
-            weight: 1, opacity:1, fillOpacity:0.7
+            weight: contourWeight,
+            opacity: 1,
+            fillOpacity: 0.7
           };
         },
         onEachFeature: (feature, layer) => {
@@ -401,26 +409,21 @@ function updateMapWithExtraProperties(){
           if(clic && clic.trim().length) { layer.on('click', ()=> window.open(clic,'_blank')); layer.setStyle({cursor:'pointer'}); }
         }
       }).addTo(map);
-      // initial filter
       updateUI();
     })
     .catch(err => { alert(err.message); console.error(err); });
 }
 
-/* ================== init small helpers ================== */
-function setupSelectAllInitial(){
-  filters.forEach(f=> setupSelectAllListener(f));
-}
-
-/* ================== small ready-state UX wiring ================== */
+/* ================== Initialisation au chargement DOM ================== */
 document.addEventListener('DOMContentLoaded', ()=> {
-  // nothing to do until user loads Excel; but wire toggles text correctly
-  document.querySelectorAll('.toggle-btn').forEach(btn => {
-    const tgt = btn.getAttribute('data-target');
-    btn.textContent = capitalize(tgt);
+  initialBuildAndListeners();
+
+  // Conversion auto dès sélection du fichier
+  document.getElementById('uploadExcel').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    convertAndDisplay(file);
   });
 });
-
 </script>
 </body>
 </html>
