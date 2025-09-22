@@ -10,7 +10,7 @@
   <style>
     html, body {margin:0; padding:0; height:100%; font-family:Arial,sans-serif; overflow:hidden;}
     body {display:flex; height:100vh; user-select:none;}
-    #sidebar-left,#sidebar-right {background:#000; color:white; overflow-y:auto; padding:10px; box-shadow:2px 0 5px rgba(0,0,0,0.3); font-size:14px; min-width:180px; max-width:400px; resize:horizontal;}
+    #sidebar-left,#sidebar-right {background:#000; color:white; overflow-y:auto; padding:10px; box-shadow:2px 0 5px rgba(0,0,0,0.3);font-size:14px; min-width:180px; max-width:400px; resize:horizontal;}
     #sidebar-left {border-right:1px solid #444; width:250px;}
     #sidebar-right {border-left:1px solid #444; width:250px;}
     #map {flex-grow:1; height:100vh;}
@@ -18,25 +18,19 @@
     #controls {padding:10px; background:#111; position:sticky; top:0; z-index:1000; border-bottom:1px solid #444; margin-bottom:10px; user-select:none; color:white;}
     .custom-tooltip {font-weight:bold;}
     .selectall-label {font-weight:bold; margin-top:6px; border-bottom:1px solid #444; padding-bottom:2px; cursor:pointer; user-select:none; color:white;}
-    .toggle-btn {font-size:14px; background:#007bff; border:none; color:white; padding:4px 10px; border-radius:4px; cursor:pointer; user-select:none; margin:10px 0 6px 0; width:100%; text-align:left;}
-    #toggleLeftBtn, #toggleRightBtn {
-      position: fixed; top: 10px; padding: 8px 14px; font-size: 14px; border-radius: 4px; cursor: pointer;
-      user-select:none; box-shadow: 0 2px 8px rgba(0,0,0,0.3); color: white;
-    }
+    .toggle-btn {font-size:14px; background:#007bff; border:none; color:white; padding:4px 10px; border-radius:4px; cursor:pointer; user-select:none; margin:10px 0 6px; width:100%; text-align:left;}
     #toggleLeftBtn {
-      left: 10px;
-      background-color: #FF0000; /* rouge */
-      box-shadow: 0 2px 8px rgba(255,0,0,0.7);
-      z-index: 1400;
+      position: fixed; top: 10px; left: 10px; z-index:1400; padding: 8px 14px; font-size: 14px; border-radius: 4px;
+      cursor: pointer; user-select: none; background: #FFD700; color: black;
+      box-shadow: 0 0 10px gold;
     }
     #toggleRightBtn {
-      right: 10px;
-      background-color: #00bfff;
-      box-shadow: 0 2px 8px rgba(0,191,255,0.7);
-      z-index: 1400;
+      position: fixed; top: 10px; right: 10px; z-index:1400; padding: 8px 14px; font-size: 14px; border-radius: 4px;
+      cursor: pointer; user-select: none; background: #00bfff; color: white;
+      box-shadow: 0 0 10px deepskyblue;
     }
     .hidden {display:none !important;}
-    input[disabled] {filter:grayscale(1) brightness(1.3);}
+    input[disabled] {filter: grayscale(1) brightness(1.3);}
   </style>
 </head>
 <body>
@@ -48,48 +42,61 @@
     <input type="file" id="uploadExcel" accept=".xlsx" />
     <button id="convertBtn">Conversion JSON et Affichage</button>
   </div>
+
   <button class="toggle-btn" data-target="agence">Agence</button>
   <div id="filter-agence" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="agence-select-all"> Tout Agences</label>
     <div id="agenceList"></div>
   </div>
+
   <button class="toggle-btn" data-target="region">Région</button>
   <div id="filter-region" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="region-select-all"> Tout Régions</label>
     <div id="regionList"></div>
   </div>
+
   <button class="toggle-btn" data-target="antenne">Antenne</button>
   <div id="filter-antenne" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="antenne-select-all"> Tout Antennes</label>
     <div id="antenneList"></div>
   </div>
+
   <button class="toggle-btn" data-target="dsp">DSP</button>
   <div id="filter-dsp" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="dsp-select-all"> Tout DSP</label>
     <div id="dspList"></div>
   </div>
+
   <button class="toggle-btn" data-target="canaldis">Canal DIS</button>
   <div id="filter-canaldis" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="canaldis-select-all"> Tout Canal DIS</label>
     <div id="canaldisList"></div>
   </div>
 </div>
+
 <div id="map"></div>
+
 <div id="sidebar-right">
   <button class="toggle-btn" data-target="departement">Département</button>
   <div id="filter-departement" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="departement-select-all"> Tout Départements</label>
     <div id="departementList"></div>
   </div>
+
   <button class="toggle-btn" data-target="texte2">Texte2</button>
   <div id="filter-texte2" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="texte2-select-all"> Tout Texte2</label>
     <div id="texte2List"></div>
   </div>
 </div>
+
 <script>
 var map = L.map('map', { minZoom: 6, center: [46.5, 2.5], zoom: 6 });
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap contributors' }).addTo(map);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
 
 let extraProperties = {}, geoLayer;
 const fields = ['agence', 'region', 'antenne', 'departement', 'texte2', 'dsp', 'canaldis'];
@@ -103,61 +110,87 @@ function getKey(obj, key) {
 }
 
 function getFilteredCPs() {
-  let results = [];
+  let res = [];
   for(let cp in extraProperties){
     const ex = extraProperties[cp];
     if(!ex) continue;
-    if(fields.every(f=>{
+    if(fields.every(f=> {
       const val = getKey(ex, f.charAt(0).toUpperCase() + f.slice(1));
       return !(filterState[f].has(val) && filterState[f].get(val) === false);
-    })) results.push(cp);
+    })) res.push(cp);
   }
-  return results;
+  return res;
 }
 
-function updateDynamicFilterLists() {
-  let validCPs = getFilteredCPs();
-  let compatible = {};
-  fields.forEach(f=>compatible[f] = new Set());
+function updateFiltersAndUI() {
+  const validCPs = getFilteredCPs();
+
+  const allowedValues = {};
+  fields.forEach(f => allowedValues[f] = new Set());
+
   validCPs.forEach(cp => {
     const ex = extraProperties[cp];
     fields.forEach(f => {
-      let val = getKey(ex, f.charAt(0).toUpperCase() + f.slice(1));
-      if(val) compatible[f].add(val);
+      const val = getKey(ex, f.charAt(0).toUpperCase() + f.slice(1));
+      if(val) allowedValues[f].add(val);
     });
   });
+
   fields.forEach(f => {
     const container = document.getElementById(f+'List');
     if(!container) return;
     container.innerHTML = '';
-    let allVals = Array.from(distinctValues[f].keys()).sort();
-    allVals.forEach(val => {
+
+    // Show all values, disable those not allowed, keep checked per filterState
+    const allValues = Array.from(distinctValues[f].keys()).sort();
+    for(let val of allValues){
       const label = document.createElement('label');
       label.title = `${distinctValues[f].get(val).size} codes postaux`;
+
       const cb = document.createElement('input');
       cb.type = 'checkbox';
-      if(!filterState[f].has(val)) filterState[f].set(val,true);
+      // Initialize unchecked if missing, else use saved state
+      if(!filterState[f].has(val)) filterState[f].set(val, true);
       cb.checked = filterState[f].get(val) === true;
-      cb.disabled = !compatible[f].has(val);
+      cb.disabled = !allowedValues[f].has(val);
+
       cb.addEventListener('change', () => {
         filterState[f].set(val, cb.checked);
-        updateDynamicFilterLists();
-        filterGeoLayer();
+        updateFiltersAndUI();
+        filterMap();
       });
+
       label.appendChild(cb);
-      label.appendChild(document.createTextNode(' ' + val));
+      label.appendChild(document.createTextNode(' '+val));
       container.appendChild(label);
-    });
-    updateSelectAllCheckbox(f);
+    }
+
+    updateSelectAll(f);
+  });
+
+  // Update map features
+  if(!geoLayer) return;
+  geoLayer.eachLayer(layer => {
+    const cp = layer.feature.properties.code_postal || layer.feature.properties.codePostal || layer.feature.properties.code || '';
+    if(validCPs.includes(cp)) {
+      layer.addTo(map);
+    } else {
+      map.removeLayer(layer);
+    }
   });
 }
 
-function updateSelectAllCheckbox(name) {
-  const selAll = document.getElementById(name+'-select-all');
+function updateSelectAll(f) {
+  const selAll = document.getElementById(f+'-select-all');
   if(!selAll) return;
-  const inputs = Array.from(document.getElementById(name+'List').querySelectorAll('input[type="checkbox"]:not([disabled])'));
+  const container = document.getElementById(f+'List');
+  if(!container) return;
+
+  const inputs = Array.from(container.querySelectorAll('input[type=checkbox]:not(:disabled)'));
   if(inputs.length === 0){
-    selAll.checked = false; selAll.indeterminate = false; return;
+    selAll.checked = false;
+    selAll.indeterminate = false;
+    return;
   }
   const allChecked = inputs.every(cb => cb.checked);
   const anyChecked = inputs.some(cb => cb.checked);
@@ -165,32 +198,82 @@ function updateSelectAllCheckbox(name) {
   selAll.indeterminate = !allChecked && anyChecked;
 }
 
-function setupSelectAllListener(name){
-  const selAll = document.getElementById(name+'-select-all');
-  if(!selAll) return;
-  selAll.addEventListener('change',()=>{
-    const checked = selAll.checked;
-    const container = document.getElementById(name+'List');
-    Array.from(container.querySelectorAll('input[type="checkbox"]:not([disabled])')).forEach(cb=>{
-      cb.checked = checked;
-      filterState[name].set(cb.nextSibling.textContent.trim(), checked);
+function setupSelectAll() {
+  fields.forEach(f=>{
+    const selAll = document.getElementById(f+'-select-all');
+    if(!selAll) return;
+    selAll.addEventListener('change', ()=>{
+      const container = document.getElementById(f+'List');
+      const check = selAll.checked;
+      if(!container) return;
+      Array.from(container.querySelectorAll('input[type=checkbox]:not(:disabled)')).forEach(cb=>{
+        cb.checked = check;
+        filterState[f].set(cb.nextSibling.textContent.trim(), check);
+      });
+      updateFiltersAndUI();
+      filterMap();
     });
-    updateDynamicFilterLists();
-    filterGeoLayer();
   });
 }
 
-function setupFilterToggleButtons(){
-  document.querySelectorAll('.toggle-btn').forEach(btn=>{
+function filterMap(){
+  if(!geoLayer) return;
+  const validCPs = getFilteredCPs();
+  geoLayer.eachLayer(layer => {
+    const cp = layer.feature.properties.code_postal || layer.feature.properties.codePostal || layer.feature.properties.code || '';
+    if(validCPs.includes(cp)){
+      layer.addTo(map);
+    } else {
+      map.removeLayer(layer);
+    }
+  });
+}
+
+function buildFilters(){
+  fields.forEach(f => {
+    const container = document.getElementById(f+'List');
+    if(!container) return;
+    container.innerHTML = '';
+    const allValues = Array.from(distinctValues[f].keys()).sort();
+    for(let val of allValues){
+      const label = document.createElement('label');
+      label.title = `${distinctValues[f].get(val).size} codes postaux`;
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+
+      if(!filterState[f].has(val)) filterState[f].set(val, true);
+
+      cb.checked = filterState[f].get(val) === true;
+      cb.addEventListener('change', () => {
+        filterState[f].set(val, cb.checked);
+        updateFiltersAndUI();
+        filterMap();
+      });
+
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(' '+val));
+      container.appendChild(label);
+    }
+
+    updateSelectAll(f);
+  });
+  setupSelectAll();
+  setupToggleButtons();
+}
+
+function setupToggleButtons(){
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
     const target = btn.getAttribute('data-target');
     btn.textContent = target.charAt(0).toUpperCase() + target.slice(1);
-    btn.addEventListener('click',()=>{
+    btn.addEventListener('click', () => {
       const elt = document.getElementById('filter-'+target);
       if(!elt) return;
+
       if(elt.classList.contains('hidden')){
         elt.classList.remove('hidden');
         btn.textContent = 'Masquer ' + target.charAt(0).toUpperCase() + target.slice(1);
-      }else{
+      } else {
         elt.classList.add('hidden');
         btn.textContent = target.charAt(0).toUpperCase() + target.slice(1);
       }
@@ -200,30 +283,33 @@ function setupFilterToggleButtons(){
 
 document.getElementById('toggleLeftBtn').addEventListener('click', () => {
   const left = document.getElementById('sidebar-left');
-  left.style.display = left.style.display === 'none' ? 'block' : 'none';
+  left.style.display = (left.style.display === 'none') ? 'block' : 'none';
 });
 
 document.getElementById('toggleRightBtn').addEventListener('click', () => {
   const right = document.getElementById('sidebar-right');
-  right.style.display = right.style.display === 'none' ? 'block' : 'none';
+  right.style.display = (right.style.display === 'none') ? 'block' : 'none';
 });
 
 document.getElementById('convertBtn').addEventListener('click', () => {
-  const fileInput = document.getElementById('uploadExcel');
-  const file = fileInput.files[0];
+  const input = document.getElementById('uploadExcel');
+  const file = input.files[0];
   if(!file){
-    alert("Sélectionnez un fichier Excel (.xlsx) avant de continuer.");
+    alert("Veuillez sélectionner un fichier Excel (.xlsx)");
     return;
   }
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = function(e){
     const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data,{type:'array'});
+    const workbook = XLSX.read(data, {type:'array'});
     const firstSheet = workbook.SheetNames[0];
     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
 
     extraProperties = {};
-    fields.forEach(f => { distinctValues[f].clear(); filterState[f].clear(); });
+    for(const f of fields) {
+      distinctValues[f].clear();
+      filterState[f].clear();
+    }
 
     jsonData.forEach(item => {
       const cp = item["Code Postal"] ? item["Code Postal"].toString() : "";
@@ -236,16 +322,15 @@ document.getElementById('convertBtn').addEventListener('click', () => {
       });
     });
 
-    // Initialize all filterState values to true on first load
-    fields.forEach(f =>
-      distinctValues[f].forEach((_, val) => {
+    for(const f of fields){
+      distinctValues[f].forEach((_,val) => {
         if(!filterState[f].has(val)) filterState[f].set(val, true);
-      })
-    );
+      });
+    }
 
     buildFilters();
-    updateDynamicFilterLists();
-    filterGeoLayer();
+    updateFiltersAndUI();
+    filterMap();
     map.setView([46.5, 2.5], 6);
 
     setTimeout(() => alert("Conversion et affichage réalisés !"), 200);
@@ -253,85 +338,6 @@ document.getElementById('convertBtn').addEventListener('click', () => {
   reader.readAsArrayBuffer(file);
 });
 
-function buildFilters(){
-  fields.forEach(f => {
-    const container = document.getElementById(f+'List');
-    container.innerHTML='';
-    distinctValues[f].forEach((_, val) => {
-      const label = document.createElement('label');
-      label.title = `${distinctValues[f].get(val).size} codes postaux`;
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = filterState[f].get(val) !== false;
-      cb.addEventListener('change', () => {
-        filterState[f].set(val, cb.checked);
-        updateDynamicFilterLists();
-        filterGeoLayer();
-      });
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(' '+val));
-      container.appendChild(label);
-    });
-
-    // Setup select all checkbox state and listener
-    updateSelectAllCheckbox(f);
-    setupSelectAllListener(f);
-  });
-  setupFilterToggleButtons();
-}
-
-function filterGeoLayer(){
-  if(!geoLayer) return;
-  let validCPs = getFilteredCPs();
-  geoLayer.eachLayer(layer => {
-    const cp = layer.feature.properties.code_postal || layer.feature.properties.codePostal || layer.feature.properties.code || "";
-    if(validCPs.includes(cp))
-      layer.addTo(map);
-    else
-      map.removeLayer(layer);
-  });
-}
-
-function updateMapWithExtraProperties(){
-  fetch('contours-codes-postaux.geojson').then(res => {
-    if(!res.ok) throw new Error("Le fichier GeoJSON n'a pas été chargé correctement.");
-    return res.json();
-  }).then(data => {
-    if(geoLayer) map.removeLayer(geoLayer);
-    geoLayer = L.geoJSON(data, {
-      style: feature => {
-        let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
-        let ex = extraProperties[cp] || {};
-        return {
-          fillColor: getKey(ex, "Fond_couleur") || "#66cc66",
-          color: getKey(ex, "Ligne_couleur") || "#000000",
-          weight: 1,
-          opacity: 1,
-          fillOpacity: 0.7
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        let cp = feature.properties.code_postal || feature.properties.codePostal || feature.properties.code || "";
-        let ex = extraProperties[cp] || {};
-        let texts = ["Texte1","Texte2","Texte3","Texte4"].map(field => getKey(ex, field)).filter(Boolean);
-        let tooltip = texts.join(" ");
-        let policeColor = getKey(ex, "police couleur") || "#000000";
-        layer.bindTooltip(`<span style="color: ${policeColor};">${tooltip || ("Code Postal : " + cp)}</span>`, {className:'custom-tooltip'});
-        let url = getKey(ex, "Clic URL");
-        if(url && url.trim().length>0){
-          layer.on('click', () => window.open(url, '_blank'));
-          layer.setStyle({cursor:'pointer'});
-        }
-      }
-    }).addTo(map);
-    updateDynamicFilterLists();
-    filterGeoLayer();
-  }).catch(err => {
-    alert(err.message);
-    console.error(err);
-    map.setView([46.5, 2.5], 6);
-  });
-}
 </script>
 </body>
 </html>
