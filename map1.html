@@ -80,7 +80,7 @@
     <div id="departementList"></div>
   </div>
 
-  <button class="toggle-btn" data-target="texte2">Nom</button>
+  <button class="toggle-btn" data-target="texte2">Texte2</button>
   <div id="filter-texte2" class="hidden">
     <label class="selectall-label"><input type="checkbox" id="texte2-select-all" checked> Tout Texte2</label>
     <div id="texte2List"></div>
@@ -151,7 +151,6 @@ function setupFilterToggleButtons(){
 }
 
 function capitalizeFirstLetter(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
-
 document.getElementById('toggleLeftBtn').addEventListener('click',()=>{ const left=document.getElementById('sidebar-left'); left.style.display=(left.style.display==='none')?'block':'none'; });
 document.getElementById('toggleRightBtn').addEventListener('click',()=>{ const right=document.getElementById('sidebar-right'); right.style.display=(right.style.display==='none')?'block':'none'; });
 
@@ -179,23 +178,37 @@ function filterGeoLayer(){
 
     if(show) layer.addTo(map); else map.removeLayer(layer);
   });
-  syncFilters(); // mise à jour des états (activation seulement, pas décocher)
+  syncFilters(); // met à jour l'état disabled des checkboxes dynamiquement
 }
 
+// Synchronisation des filtres : cases non décochables deviennent disabled
 function syncFilters(){
   Object.keys(distinctValues).forEach(filterName=>{
     const container=document.getElementById(filterName+'List'); if(!container) return;
     Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
       const val=cb.nextSibling.textContent.trim();
       const cpSet=distinctValues[filterName].get(val)||new Set();
-      cb.disabled=cpSet.size===0; // seulement désactiver si pas du tout dans le dataset
+      let anyVisible=false;
+      cpSet.forEach(cp=>{
+        const extras=extraProperties[cp]||{};
+        const show=
+          filterState.agence.get(getKeyIgnoreCase(extras,"Agence")||"")!==false &&
+          filterState.region.get(getKeyIgnoreCase(extras,"région")||"")!==false &&
+          filterState.antenne.get(getKeyIgnoreCase(extras,"Antenne")||"")!==false &&
+          filterState.departement.get(getKeyIgnoreCase(extras,"Departement")||"")!==false &&
+          filterState.texte2.get(getKeyIgnoreCase(extras,"Texte2")||"")!==false &&
+          filterState.dsp.get(getKeyIgnoreCase(extras,"DSP")||"")!==false &&
+          filterState.canaldis.get(getKeyIgnoreCase(extras,"Canal DIS")||"")!==false;
+        if(show) anyVisible=true;
+      });
+      cb.disabled=!anyVisible;
     });
     updateSelectAllCheckbox(filterName);
   });
 }
 
 function updateDistinctValues(jsonData){
-  for(const key in distinctValues){ distinctValues[key].clear(); filterState[key].clear(); }
+  Object.keys(distinctValues).forEach(k=>{ distinctValues[k].clear(); filterState[k].clear(); });
   jsonData.forEach(item=>{
     const cp=(item["Code Postal"]||"").toString(); if(!cp) return;
     const ag=getKeyIgnoreCase(item,"Agence")||"";
@@ -258,12 +271,11 @@ function updateMapWithExtraProperties(){
       onEachFeature:function(feature,layer){
         const cp=feature.properties.code_postal||feature.properties.codePostal||feature.properties.code||"";
         const extras=extraProperties[cp]||{};
-        let texteParts=[];
-        ["Texte1","Texte2","Texte3","Texte4"].forEach(field=>{ const val=getKeyIgnoreCase(extras,field); if(val) texteParts.push(val); });
-        let tooltipText=texteParts.join(" ");
-        let policeCouleur=getKeyIgnoreCase(extras,"police couleur")||'#000000';
+        let texteParts=[]; ["Texte1","Texte2","Texte3","Texte4"].forEach(fld=>{ const val=getKeyIgnoreCase(extras,fld); if(val) texteParts.push(val); });
+        const tooltipText=texteParts.join(" ");
+        const policeCouleur=getKeyIgnoreCase(extras,"police couleur")||'#000000';
         layer.bindTooltip(`<span style="color: ${policeCouleur};">${tooltipText||("Code Postal : "+cp)}</span>`,{className:'custom-tooltip'});
-        let clicUrl=getKeyIgnoreCase(extras,"Clic URL");
+        const clicUrl=getKeyIgnoreCase(extras,"Clic URL");
         if(clicUrl && clicUrl.trim().length>0){ layer.on("click",()=>window.open(clicUrl,'_blank')); layer.setStyle({ cursor:"pointer" }); }
       }
     }).addTo(map);
