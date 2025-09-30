@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prévisionnel d'activité de distribution (colis MET)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding-top: 10px;
+      background: #f0f0f0;
+    }
+    .top-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #4b0082;
+      color: #fff;
+      padding: 10px 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .top-banner h1 {
+      font-size: 20px;
+      margin: 0;
+      line-height: 1.2;
+      white-space: nowrap;
+      color: #fff;
+    }
+    .header-left {
+      flex: 1;
+      min-width: 200px;
+    }
+    .header-center, .header-right {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .filters-horizontal {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .type-filters {
+      display: flex;
+      gap: 10px;
+    }
+    .checkbox-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+    .agency-list {
+      display: none;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 2px;
+      background: #e0d4ff;
+      padding: 2px;
+      border-radius: 2px;
+      border: 1px solid #c0b0ff;
+      color: #000;
+      font-size: 10px;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 7px;
+      margin: 10px;
+    }
+    .chart-container {
+      border: 1px solid #ccc;
+      padding: 5px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-sizing: border-box;
+      max-width: 1600px;
+      min-width: 260px;
+      width: 100%;
+      margin: auto;
+      overflow: auto;
+      min-height: 320px;
+      resize: both;
+    }
+    #quarterFilters, #monthFilters, .checkbox-row.type-filters {
+      font-size: 0.75em;
+    }
+    #quarterFilters label, #monthFilters label, .checkbox-row.type-filters label {
+      font-size: 0.75em;
+    }
+    .single-agency {
+      grid-column: 1 / -1;
+      width: 100%;
+      max-width: 1600px;
+      margin: auto;
+    }
+    .chart-title {
+      font-size: 1em;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .chart-subtitle {
+      font-size: 0.85em;
+      color: #666;
+      margin: 0;
+      margin-top: 2px;
+    }
+    .chart-canvas-container {
+      flex: 1;
+      min-height: 250px;
+      position: relative;
+      width: 100%;
+    }
+    .chart-canvas-container canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #import-button, #refresh-button, #exportExcelBtn {
+      padding: 6px 12px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .data-section {
+      margin: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+    .data-table {
+      margin-top: 10px;
+      border-collapse: collapse;
+      background: #fff;
+      font-size: 0.85em;
+      width: 100%;
+    }
+    .data-table th, .data-table td {
+      border: 1px solid #ccc;
+      padding: 4px 6px;
+      text-align: center;
+    }
+    .data-table thead th {
+      position: sticky;
+      top: 0;
+      background: #eee;
+      z-index: 3;
+    }
+    .data-table thead th:first-child {
+      z-index: 4;
+    }
+    .data-table th {
+      background: #eee;
+    }
+    .data-table th:first-child,
+    .data-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: #f9f9f9;
+      z-index: 2;
+      border-right: 1px solid #ccc;
+    }
+    .toggle-btn {
+      padding: 5px;
+      background: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 5px;
+    }
+    .close-btn, .reset-btn {
+      height: 22px;
+      line-height: 22px;
+      font-size: 16px;
+      cursor: pointer;
+      user-select: none;
+      width: 22px;
+      text-align: center;
+      color: #333;
+    }
+    .close-btn:hover {
+      color: red;
+    }
+    .reset-btn:hover {
+      color: #007bff;
+    }
+    #toggleAgencies {
+      width: 75px;
+    }
+    .single-visible, .single-visible-single-agency {
+      position: fixed !important;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9999;
+      background: #fff;
+      padding: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      border-radius: 6px;
+      min-width: 260px !important;
+      min-height: 150px !important;
+    }
+    .single-visible .chart-canvas-container,
+    .single-visible-single-agency .chart-canvas-container {
+      padding-bottom: 0 !important;
+      height: 100% !important;
+    }
+    .single-visible canvas,
+    .single-visible-single-agency canvas {
+      position: relative !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .title-container {
+      flex-grow: 1;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0;
+      user-select: text;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 2px 5px;
+      margin-bottom: 4px;
+      user-select: none;
+    }
+    #dataMatrix {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    #dataMatrix.fullscreen {
+      position: fixed !important;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9999;
+      background: #fff;
+      padding: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      border-radius: 6px;
+      width: 90vw;
+      height: 80vh;
+      overflow: auto;
+    }
+    #dataMatrix.fullscreen .close-btn {
+      display: block;
+    }
+    #customTooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.9em;
+      pointer-events: none;
+      z-index: 10000;
+      transition: opacity 0.1s ease;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      opacity: 0;
+    }
+    .tooltip-header {
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    .tooltip-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    @media (max-width: 900px) {
+      .top-banner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .header-left, .header-center, .header-right {
+        width: 100%;
+      }
+      .reset-btn {
+        position: absolute;
+        top: 8px;
+        right: 36px;
+        font-size: 16px;
+        font-weight: bold;
+        display: block;
+      }
+      #moisToggleBtn {
+        background: #8a2be2;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 7px 16px;
+        cursor: pointer;
+        font-size: 0.85em;
+      }
+      #moisContainer {
+        margin: 4px 0;
+        background: #e0d4ff;
+        border-radius: 4px;
+        border: 1px solid #c0b0ff;
+        padding: 5px;
+      }
+    }
+.ia-section { margin-top: 20px; }
+.ia-response { font-family: monospace; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <header class="top-banner">
+    <div class="header-left">
+      <h1>Prévisionnel d'activité de distribution (colis MET)</h1>
+    </div>
+    <div class="header-center">
+      <button id="import-button">Importer</button>
+      <button id="refresh-button">Rafraîchir</button>
+      <button id="exportExcelBtn">Exporter</button>
+      <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none;">
+      <div class="filters-horizontal">
+        <label>Flux :
+          <select id="fluxSelect">
+            <option value="Hebdo" selected>Hebdo</option>
+            <option value="Peak Day">Peak Day</option>
+            <option value="Jour">Jour</option>
+          </select>
+        </label>
+        <div id="quarterFilters" class="checkbox-row"></div>
+        <button id="moisToggleBtn" type="button">Mois</button>
+        <div id="moisContainer" style="display:none;">
+          <div id="monthFilters" class="checkbox-row"></div>
+        </div>
+        <div class="checkbox-row type-filters">
+          <label><input type="checkbox" id="showActual" checked> Réalisé</label>
+          <label><input type="checkbox" id="showForecast" checked> Prévisionnel</label>
+          <label><input type="checkbox" id="showHistorical" checked> Historique</label>
+          <label><input type="checkbox" id="showForecastPeak" checked> Prévisionnel Peak</label>
+          <label><input type="checkbox" id="showForecastModified" checked> Prévisionnel Modifié</label>
+          <label style="margin-left:10px;">
+            <input type="checkbox" id="togglePointSize"> Afficher / masquer points
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="checkboxRow" class="checkbox-row"></div>
+      <button id="toggleAgencies">Afficher agences</button>
+      <div id="agencyList" class="agency-list"></div>
+    </div>
+  </header>
+  <div class="chart-grid" id="chartGrid"></div>
+  <div class="data-section">
+    <button id="toggleData" class="toggle-btn">Afficher données</button>
+    <div id="dataMatrix" style="display:none; position:relative;">
+      <div class="close-btn" style="display:none;">&times;</div>
+    </div>
+	<div class="ia-section">
+  <button id="analyzeButton">Analyser les données</button>
+  <div id="iaPromptContainer" style="margin-top: 8px;">
+    <label for="iaPrompt">Demande précise à l'IA :</label>
+    <input type="text" id="iaPrompt" placeholder="Ex: Analyse les écarts entre prévisions et réalisés, identifie les outliers..." style="width: 100%; margin-top: 4px;">
+  </div>
+  <div id="iaResponse" class="ia-response" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; min-height: 80px;">
+    <!-- Ici s'affichera la réponse de l'IA -->
+  </div>
+</div>
+  </div>
+
+  <script>
+    // --- Variables globales ---
+    let allSheetsData = {};
+    let excelData = [];
+    let quartersRow = [], monthsRow = [], headers = [];
+    let agenciesData = [];
+    let chartInstances = {};
+    let chartElements = {};
+    let agencyCheckboxes = [], regionCheckboxes = {};
+    let checkboxAll = null;
+    let activeQuarters = new Set(), activeMonths = new Set();
+    let currentFlux = document.getElementById('fluxSelect').value;
+    let filtersState = {};
+    let chartCustomSizes = {};
+    let uniformSizeForFirstNine = null;
+    let fullscreenAgencies = [];
+    let showPoints = false;
+    let forecastEditedData = {}; // { flux: { agence: [valeurs] } }
+    let dragInfo = null;
+    let dragValueTooltip = null;
+
+    // --- Éléments DOM ---
+    const importButton = document.getElementById('import-button');
+    const importFile = document.getElementById('import-file');
+    const refreshButton = document.getElementById('refresh-button');
+    const fluxSelect = document.getElementById('fluxSelect');
+    const quarterFilters = document.getElementById('quarterFilters');
+    const monthFilters = document.getElementById('monthFilters');
+    const moisToggleBtn = document.getElementById('moisToggleBtn');
+    const moisContainer = document.getElementById('moisContainer');
+    const showActualCheckbox = document.getElementById('showActual');
+    const showForecastCheckbox = document.getElementById('showForecast');
+    const showHistoricalCheckbox = document.getElementById('showHistorical');
+    const showForecastPeakCheckbox = document.getElementById('showForecastPeak');
+    const showForecastModifiedCheckbox = document.getElementById('showForecastModified');
+    const chartGrid = document.getElementById('chartGrid');
+    const checkboxRow = document.getElementById('checkboxRow');
+    const agencyList = document.getElementById('agencyList');
+    const toggleAgenciesBtn = document.getElementById('toggleAgencies');
+    const toggleDataBtn = document.getElementById('toggleData');
+    const dataMatrix = document.getElementById('dataMatrix');
+    const exportExcelBtn = document.getElementById('exportExcelBtn');
+    const togglePointSizeCheckbox = document.getElementById('togglePointSize');
+    const dataMatrixCloseBtn = dataMatrix.querySelector('.close-btn');
+
+    // --- Fonction throttle pour limiter les appels à mousemove ---
+    function throttle(func, limit) {
+      var inThrottle;
+      return function() {
+        if (!inThrottle) {
+          func.apply(this, arguments);
+          inThrottle = true;
+          setTimeout(function() { inThrottle = false; }, limit);
+        }
+      };
+    }
+
+    // --- Fonctions d'affichage tooltip ---
+    function highlightDragPoint(chart, datasetIndex, index, highlight) {
+      chart.data.datasets.forEach(function(ds) { ds.pointRadius = 2; ds.pointBackgroundColor = undefined; });
+      if (highlight) {
+        chart.data.datasets[datasetIndex].pointRadius = 8;
+        chart.data.datasets[datasetIndex].pointBackgroundColor = ['orange'];
+      }
+      chart.update('none');
+    }
+
+    function showDragValue(chart, value) {
+      if (!dragValueTooltip) {
+        dragValueTooltip = document.createElement('div');
+        dragValueTooltip.style.position = 'fixed';
+        dragValueTooltip.style.background = 'rgba(0,0,0,0.9)';
+        dragValueTooltip.style.color = 'white';
+        dragValueTooltip.style.fontWeight = 'bold';
+        dragValueTooltip.style.padding = '4px 8px';
+        dragValueTooltip.style.borderRadius = '4px';
+        dragValueTooltip.style.zIndex = '10001';
+        document.body.appendChild(dragValueTooltip);
+      }
+      dragValueTooltip.textContent = value.toFixed(2);
+      var rect = chart.canvas.getBoundingClientRect();
+      dragValueTooltip.style.left = rect.left + window.scrollX + 'px';
+      dragValueTooltip.style.top = (rect.top + window.scrollY - 30) + 'px';
+      dragValueTooltip.style.display = 'block';
+    }
+
+    function hideDragValue() {
+      if (dragValueTooltip) dragValueTooltip.style.display = 'none';
+    }
+
+    // --- Drag pour la prévision modifiée (avec throttle) ---
+    function addDragInteraction(chart, agencyName) {
+      var canvas = chart.canvas;
+      canvas.style.cursor = 'default';
+
+      var mousemoveHandler = null;
+      var existingMousemove = null;
+
+      canvas.addEventListener('mousedown', function(evt) {
+        var points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, false);
+        if (points.length > 0) {
+          var point = points[0];
+          var datasetLabel = chart.data.datasets[point.datasetIndex].label;
+          if (datasetLabel && datasetLabel.startsWith('Prévisionnel Modifié')) {
+            dragInfo = {
+              chart: chart,
+              agency: agencyName,
+              datasetIndex: point.datasetIndex,
+              index: point.index,
+              startY: evt.clientY,
+              startValue: forecastEditedData[currentFlux][agencyName][point.index]
+            };
+            canvas.style.cursor = 'ns-resize';
+            highlightDragPoint(chart, point.datasetIndex, point.index, true);
+            showDragValue(chart, dragInfo.startValue);
+
+            // Supprime l'ancien mousemove si nécessaire
+            if (existingMousemove) {
+              window.removeEventListener('mousemove', existingMousemove);
+            }
+
+            // Déclaration de la fonction interne pour mousemove (classique, pas fléchée)
+            var handleMouseMove = function(evt) {
+              if (dragInfo) {
+                var yScale = dragInfo.chart.scales.y;
+                var unitPerPixel = (yScale.max - yScale.min) / yScale.height;
+                var newValue = dragInfo.startValue + (dragInfo.startY - evt.clientY) * unitPerPixel;
+                newValue = Math.max(0, Math.round(newValue * 100) / 100);
+
+                if (!forecastEditedData[currentFlux]) forecastEditedData[currentFlux] = {};
+                if (!forecastEditedData[currentFlux][dragInfo.agency]) forecastEditedData[currentFlux][dragInfo.agency] = [];
+                forecastEditedData[currentFlux][dragInfo.agency][dragInfo.index] = newValue;
+
+                dragInfo.chart.data.datasets[dragInfo.datasetIndex].data[dragInfo.index] = newValue;
+                dragInfo.chart.update('none');
+                highlightDragPoint(dragInfo.chart, dragInfo.datasetIndex, dragInfo.index, true);
+                showDragValue(dragInfo.chart, newValue);
+
+                var visibleAgencies = agencyCheckboxes.filter(function(cb) { return cb.checked; }).map(function(cb) { return cb.dataset.agency; });
+                buildDataMatrixReleve(getActiveColumns(), visibleAgencies);
+                makeForecastModifiedEditable();
+              }
+            };
+
+            // Application du throttle
+            mousemoveHandler = throttle(handleMouseMove, 30);
+            existingMousemove = mousemoveHandler;
+            window.addEventListener('mousemove', mousemoveHandler);
+          }
+        }
+      });
+
+      window.addEventListener('mouseup', function() {
+        if (dragInfo) {
+          highlightDragPoint(dragInfo.chart, dragInfo.datasetIndex, dragInfo.index, false);
+          dragInfo.chart.canvas.style.cursor = 'default';
+          dragInfo = null;
+          hideDragValue();
+        }
+        if (existingMousemove) {
+          window.removeEventListener('mousemove', existingMousemove);
+          existingMousemove = null;
+        }
+      });
+    }
+
+    // --- Tooltip externe amélioré ---
+    function externalTooltip(context) {
+      var tooltipEl = document.getElementById('customTooltip');
+      if (!tooltipEl) {
+        tooltipEl = document.createElement('div');
+        tooltipEl.id = 'customTooltip';
+        tooltipEl.style.position = 'absolute';
+        tooltipEl.style.background = 'rgba(0,0,0,0.85)';
+        tooltipEl.style.color = 'white';
+        tooltipEl.style.padding = '8px 12px';
+        tooltipEl.style.borderRadius = '6px';
+        tooltipEl.style.fontSize = '0.9em';
+        tooltipEl.style.pointerEvents = 'none';
+        tooltipEl.style.zIndex = '10000';
+        tooltipEl.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
+        document.body.appendChild(tooltipEl);
+      }
+
+      var tooltipModel = context.tooltip;
+      if (tooltipModel.opacity === 0) {
+        tooltipEl.style.opacity = 0;
+        return;
+      }
+
+      var container = context.chart.canvas.closest('.chart-container');
+      var rect = container.getBoundingClientRect();
+      tooltipEl.style.left = rect.left + window.scrollX + tooltipModel.caretX + 20 + 'px';
+      tooltipEl.style.top = rect.top + window.scrollY + tooltipModel.caretY - tooltipEl.offsetHeight - 10 + 'px';
+      tooltipEl.style.opacity = 1;
+
+      if (tooltipModel.dataPoints && tooltipModel.dataPoints.length > 0) {
+        var firstDp = tooltipModel.dataPoints[0];
+        var agencyName = container.dataset.agency || '';
+        if (agencyName.includes('(')) agencyName = agencyName.split('(')[0].trim();
+
+        var html = '<div class="tooltip-header"><strong>' + agencyName + '</strong><br><span class="tooltip-date">Date: ' + firstDp.label + '</span></div>';
+        tooltipModel.dataPoints.forEach(function(dp, idx) {
+          var label = dp.dataset.label;
+          if (label.includes('Prévisionnel Modifié')) label = 'Prévisionnel Modifié';
+          var value = dp.raw !== null && dp.raw !== undefined ? dp.raw.toFixed(2) : 'N/A';
+          html += '<div class="tooltip-row">' +
+                  '<span style="display:inline-block; width: 12px; height: 12px; background:' + dp.dataset.borderColor + '; margin-right: 8px; border-radius: 3px;"></span>' +
+                  '<span>' + label + '</span>' +
+                  '<span style="margin-left: auto; font-weight: 600;">' + value + '</span>' +
+                  '</div>';
+        });
+        tooltipEl.innerHTML = html;
+      }
+    }
+
+    // --- Fonctions principales ---
+
+    function handleFileImport(evt) {
+      var file = evt.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, {type:'array'});
+        allSheetsData = {};
+        wb.SheetNames.forEach(function(name) {
+          allSheetsData[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1});
+        });
+        loadSheet(currentFlux);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function loadSheet(sheetName) {
+      if (!allSheetsData[sheetName]) { alert("Onglet '" + sheetName + "' introuvable."); return; }
+      excelData = allSheetsData[sheetName];
+      var startRow = (sheetName === 'Jour') ? 4 : 3;
+      quartersRow = excelData[0] || [];
+      monthsRow = excelData[1] || [];
+      headers = excelData[startRow - 1] || [];
+
+      var temp = {};
+      for (var r = startRow; r < excelData.length; r++) {
+        var row = excelData[r];
+        if (!row || row.length < 4) continue;
+        var flux = (row[0] || '').toString().trim().toLowerCase();
+        var agency = row[1], region = row[2]; if (!agency) continue;
+        if (!temp[agency]) temp[agency] = {name: agency, region: region || '', forecast: [], actual: [], historique: [], forecastPeak: []};
+        var values = row.slice(3).map(function(v) { return isNaN(Number(v)) ? null : Number(v); });
+        if (flux.startsWith('prévisionnel peak') || flux.startsWith('previsionnel peak') || flux.startsWith('pré peak') || flux.startsWith('pre peak')) temp[agency].forecastPeak = values;
+        else if (flux.startsWith('pré') || flux.startsWith('pre')) temp[agency].forecast = values;
+        else if (flux.startsWith('réal') || flux.startsWith('real')) temp[agency].actual = values;
+        else if (flux.startsWith('hist') || flux === 'historique') temp[agency].historique = values;
+      }
+      agenciesData = Object.keys(temp).map(function(k) { return temp[k]; });
+
+      // --- Initialise forecastEditedData : copie forecast si vide ---
+      if (!forecastEditedData) forecastEditedData = {};
+      if (!forecastEditedData[currentFlux]) forecastEditedData[currentFlux] = {};
+      agenciesData.forEach(function(agency) {
+        if (!forecastEditedData[currentFlux][agency.name] || !Array.isArray(forecastEditedData[currentFlux][agency.name]) || forecastEditedData[currentFlux][agency.name].length === 0) {
+          if (Array.isArray(agency.forecast) && agency.forecast.length > 0) {
+            forecastEditedData[currentFlux][agency.name] = agency.forecast.slice();
+          } else {
+            forecastEditedData[currentFlux][agency.name] = [];
+          }
+        }
+      });
+
+      var quarters = [...new Set(quartersRow.slice(3).filter(Boolean))];
+      var months = [...new Set(monthsRow.slice(3).filter(Boolean))];
+      restoreFiltersState();
+      if (!filtersState || !filtersState.quarters) { activeQuarters = new Set(quarters); activeMonths = new Set(months); }
+      buildQuarterMonthFilters(quarters, months);
+      buildCheckboxes(agenciesData);
+      restoreAgencyState();
+
+      agencyCheckboxes.forEach(function(cb) {
+        var c = chartElements[cb.dataset.agency];
+        if (c) c.style.display = cb.checked ? 'flex' : 'none';
+      });
+
+      updateChartsAndMatrix();
+      setTimeout(function() { updateChartsAndMatrix(); }, 10);
+    }
+
+    // Crée les filtres d’agences et régions
+    function buildCheckboxes(agencies) {
+      checkboxRow.innerHTML = ''; agencyList.innerHTML = ''; chartGrid.innerHTML = '';
+      chartInstances = {}; chartElements = {}; agencyCheckboxes = []; regionCheckboxes = {};
+      var labelAll = document.createElement('label');
+      checkboxAll = document.createElement('input');
+      checkboxAll.type = 'checkbox';
+      checkboxAll.checked = true;
+      checkboxAll.addEventListener('change', function() {
+        var checked = checkboxAll.checked;
+        Object.values(regionCheckboxes).forEach(function(cb) { cb.checked = checked; });
+        agencyCheckboxes.forEach(function(cb) {
+          cb.checked = checked;
+          var c = chartElements[cb.dataset.agency];
+          if (c) c.style.display = checked ? 'flex' : 'none';
+        });
+        saveFiltersState();
+        updateChartsAndMatrix();
+      });
+      labelAll.appendChild(checkboxAll);
+      labelAll.appendChild(document.createTextNode(' Tous'));
+      checkboxRow.appendChild(labelAll);
+
+      var regions = {N: 'Nord', E: 'Est', O: 'Ouest', S: 'Sud', H: 'Hub'};
+      Object.keys(regions).forEach(function(k) {
+        var label = document.createElement('label');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = true;
+        cb.dataset.region = k;
+        cb.addEventListener('change', function() {
+          var checked = cb.checked;
+          agencyCheckboxes.filter(function(a) { return a.dataset.region === k; }).forEach(function(a) {
+            a.checked = checked;
+            var c = chartElements[a.dataset.agency];
+            if (c) c.style.display = checked ? 'flex' : 'none';
+          });
+          saveFiltersState();
+          updateRegionAndAllStates();
+          updateChartsAndMatrix();
+        });
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(' ' + regions[k]));
+        checkboxRow.appendChild(label);
+        regionCheckboxes[k] = cb;
+      });
+
+      agencies.forEach(function(entity) {
+        var label = document.createElement('label');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = true;
+        cb.dataset.agency = entity.name;
+        cb.dataset.region = entity.region;
+        cb.addEventListener('change', function() {
+          var c = chartElements[entity.name];
+          if (c) c.style.display = cb.checked ? 'flex' : 'none';
+          saveFiltersState();
+          updateRegionAndAllStates();
+          updateChartsAndMatrix();
+        });
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(' ' + entity.name + ' (' + entity.region + ')'));
+        agencyList.appendChild(label);
+        agencyCheckboxes.push(cb);
+        var container = createChartContainer(entity);
+        container.dataset.agency = entity.name;
+        chartGrid.appendChild(container);
+        chartElements[entity.name] = container;
+      });
+
+      updateRegionAndAllStates();
+    }
+
+    // Crée un conteneur de graphique
+    function createChartContainer(entity) {
+      var container = document.createElement('div');
+      container.className = 'chart-container';
+      container.dataset.agency = entity.name;
+
+      // Header (boutons + titres)
+      var header = document.createElement('div');
+      header.className = 'chart-header';
+      
+      // Bouton réinitialiser taille
+      var resetBtn = document.createElement('div');
+      resetBtn.className = 'reset-btn';
+      resetBtn.innerHTML = '↺';
+      resetBtn.title = 'Réinitialiser la taille';
+      resetBtn.addEventListener('dblclick', function(e) {
+        e.stopPropagation();
+        container.style.width = '';
+        container.style.height = '';
+        if (chartCustomSizes[entity.name]) delete chartCustomSizes[entity.name];
+        if (uniformSizeForFirstNine) uniformSizeForFirstNine = null;
+        if (chartInstances[entity.name]) chartInstances[entity.name].resize();
+      });
+
+      // Titres (centre)
+      var titleContainer = document.createElement('div');
+      titleContainer.className = 'title-container';
+      var title = document.createElement('div');
+      title.className = 'chart-title';
+      title.textContent = entity.name;
+      var subtitle = document.createElement('div');
+      subtitle.className = 'chart-subtitle';
+      subtitle.textContent = currentFlux;
+      titleContainer.appendChild(title);
+      titleContainer.appendChild(subtitle);
+
+      // Bouton fermer fullscreen (droite)
+      var closeBtn = document.createElement('div');
+      closeBtn.className = 'close-btn';
+      closeBtn.innerHTML = '&times;';
+      closeBtn.style.display = 'none';
+      closeBtn.addEventListener('dblclick', function(e) {
+        e.stopPropagation();
+        exitFullscreen(container);
+      });
+
+      header.appendChild(resetBtn);
+      header.appendChild(titleContainer);
+      header.appendChild(closeBtn);
+      container.appendChild(header);
+
+      // Canvas (graphique)
+      var canvasContainer = document.createElement('div');
+      canvasContainer.className = 'chart-canvas-container';
+      var canvas = document.createElement('canvas');
+      canvasContainer.appendChild(canvas);
+      container.appendChild(canvasContainer);
+
+      // Double-click pour fullscreen
+      container.addEventListener('dblclick', function() { toggleFullscreen(container); });
+
+      // Création du chart
+      var chart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, labels: { usePointStyle: true, pointStyle: 'line', font: { size: 8 } } },
+            tooltip: { enabled: false, external: externalTooltip }
+          },
+          interaction: { mode: 'index', intersect: false },
+          elements: { point: { radius: 2, hoverRadius: 6 } },
+          scales: {
+            x: { title: { display: false } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      // Ajoute la gestion du drag&drop avec feedback
+      addDragInteraction(chart, entity.name);
+
+      chartInstances[entity.name] = chart;
+      chartElements[entity.name] = container;
+
+      // Ajoute le resize observer pour ajuster la taille
+      new ResizeObserver(function() { updateGridLayout(); }).observe(container);
+
+      return container;
+    }
+
+    // Fabrique les filtres trimestres/mois
+    function buildQuarterMonthFilters(quarters, months) {
+      quarterFilters.innerHTML = ''; 
+      monthFilters.innerHTML = '';
+      var qTitle = document.createElement('div');
+      qTitle.textContent = 'Trimestres:';
+      quarterFilters.appendChild(qTitle);
+      var monthsByQuarter = {
+        Q1: ['Janvier', 'Février', 'Mars', 'Avril'],
+        Q2: ['Mai', 'Juin', 'Juillet', 'Août'],
+        Q3: ['Septembre', 'Octobre', 'Novembre', 'Décembre']
+      };
+      var monthCheckboxes = {};
+      months.forEach(function(m) {
+        var label = document.createElement('label');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = activeMonths.has(m);
+        cb.dataset.m = m;
+        cb.addEventListener('change', function() {
+          cb.checked ? activeMonths.add(m) : activeMonths.delete(m);
+          saveFiltersState();
+          updateChartsAndMatrix();
+        });
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(' ' + m));
+        monthFilters.appendChild(label);
+        monthCheckboxes[m] = cb;
+      });
+      quarters.forEach(function(q) {
+        var label = document.createElement('label');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = activeQuarters.has(q);
+        cb.dataset.q = q;
+        cb.addEventListener('change', function() {
+          if (cb.checked) {
+            activeQuarters.add(q);
+            (monthsByQuarter[q] || []).forEach(function(m) {
+              if (monthCheckboxes[m]) { monthCheckboxes[m].checked = true; activeMonths.add(m); }
+            });
+          } else {
+            activeQuarters.delete(q);
+            (monthsByQuarter[q] || []).forEach(function(m) {
+              if (monthCheckboxes[m]) { monthCheckboxes[m].checked = false; activeMonths.delete(m); }
+            });
+          }
+          saveFiltersState();
+          updateChartsAndMatrix();
+        });
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(' ' + q));
+        quarterFilters.appendChild(label);
+      });
+    }
+
+    // Restaure l’état des checkboxes agences
+    function restoreAgencyState() {
+      if (filtersState.agencySelections && agencyCheckboxes.length) {
+        agencyCheckboxes.forEach(function(cb) {
+          var found = filtersState.agencySelections.find(function(e) { return e.name === cb.dataset.agency; });
+          if (found !== undefined) {
+            cb.checked = found.checked;
+          } else {
+            cb.checked = true; // Par défaut
+          }
+          var c = chartElements[cb.dataset.agency];
+          if (c) c.style.display = cb.checked ? 'flex' : 'none';
+        });
+      } else {
+        agencyCheckboxes.forEach(function(cb) {
+          cb.checked = true; // Toutes par défaut
+          var c = chartElements[cb.dataset.agency];
+          if (c) c.style.display = 'flex';
+        });
+      }
+      if (checkboxAll) {
+        checkboxAll.checked = agencyCheckboxes.every(function(cb) { return cb.checked; });
+      }
+      if (filtersState.regionSelections && Object.keys(regionCheckboxes).length) {
+        Object.entries(regionCheckboxes).forEach(function([k, cb]) {
+          cb.checked = (filtersState.regionSelections[k] !== undefined) ? filtersState.regionSelections[k] : true;
+        });
+      }
+      updateRegionAndAllStates();
+    }
+
+    // Met à jour tous les graphiques et la matrice
+    function updateChartsAndMatrix() {
+      var activeCols = getActiveColumns();
+      var labels = activeCols.map(function(i) { return headers[i + 3] || ('P' + (i + 1)); });
+      var visibleAgencies = agencyCheckboxes.filter(function(cb) { return cb.checked; }).map(function(cb) { return cb.dataset.agency; });
+      var ceAgencies = visibleAgencies.filter(function(name) { return /^CE/.test(name); });
+
+      var minVals = null, maxVals = null;
+      if (ceAgencies.length > 0) {
+        minVals = []; maxVals = [];
+        activeCols.forEach(function(colIdx, idx) {
+          var min = Infinity, max = -Infinity;
+          ceAgencies.forEach(function(name) {
+            var ag = agenciesData.find(function(a) { return a.name === name; });
+            if (!ag) return;
+            var val = ag.actual && ag.actual[colIdx] !== undefined ? ag.actual[colIdx] : null;
+            if (val !== null && !isNaN(val)) {
+              if (val < min) min = val;
+              if (val > max) max = val;
+            }
+          });
+          minVals[idx] = min === Infinity ? null : min;
+          maxVals[idx] = max === -Infinity ? null : max;
+        });
+      }
+
+      agenciesData.forEach(function(entity) {
+        var chart = chartInstances[entity.name];
+        if (!chart) return;
+        // Seulement les agences visibles
+        if (!visibleAgencies.includes(entity.name)) return;
+
+        var actual = activeCols.map(function(i) { return (entity.actual && entity.actual[i] !== undefined) ? entity.actual[i] : null; });
+        var forecast = activeCols.map(function(i) { return (entity.forecast && entity.forecast[i] !== undefined) ? entity.forecast[i] : null; });
+        var forecastPeak = activeCols.map(function(i) { return (entity.forecastPeak && entity.forecastPeak[i] !== undefined) ? entity.forecastPeak[i] : null; });
+        var historique = activeCols.map(function(i) { return (entity.historique && entity.historique[i] !== undefined) ? entity.historique[i] : null; });
+
+        // Utilise les données modifiées selon le flux
+        var forecastEdited = activeCols.map(function(i) {
+          return forecastEditedData[currentFlux] && forecastEditedData[currentFlux][entity.name] && forecastEditedData[currentFlux][entity.name][i] !== undefined
+            ? forecastEditedData[currentFlux][entity.name][i]
+            : null;
+        });
+
+        chart.data.labels = labels;
+
+        // Datasets : pas de radius ici, il sera géré par adjustPointSizes
+        var datasets = [
+          { label: 'Réalisé', data: actual, borderColor: '#28a745', borderWidth: 1, tension: 0.12, spanGaps: true, hidden: !showActualCheckbox.checked },
+          { label: `Prévisionnel Modifié - ${currentFlux}`, data: forecastEdited, borderColor: '#A189FF', borderWidth: 1, tension: 0.12, spanGaps: true, borderDash: [], hidden: !showForecastModifiedCheckbox.checked },
+          { label: 'Prévisionnel Original', data: forecast, borderColor: '#FF0000', borderWidth: 1, tension: 0.12, spanGaps: true, borderDash: [5, 5], hidden: !showForecastCheckbox.checked },
+          { label: 'Historique', data: historique, borderColor: '#007bff', borderWidth: 1, tension: 0.12, spanGaps: true, borderDash: [10, 5], hidden: !showHistoricalCheckbox.checked },
+          { label: 'Prévisionnel Peak', data: forecastPeak, borderColor: '#d5a200', borderWidth: 1, tension: 0.12, spanGaps: true, borderDash: [8, 5], hidden: !showForecastPeakCheckbox.checked }
+        ];
+
+        if (ceAgencies.includes(entity.name) && minVals && maxVals) {
+          datasets.push({ label: '', data: maxVals, backgroundColor: 'rgba(100,100,100,0.2)', fill: '+1', borderWidth: 0, pointRadius: 0, borderColor: 'transparent', type: 'line', showLine: false, hidden: !showActualCheckbox.checked });
+          datasets.push({ label: '', data: minVals, fill: false, borderWidth: 0, pointRadius: 0, borderColor: 'transparent', type: 'line', showLine: false, hidden: !showActualCheckbox.checked });
+        }
+
+        chart.data.datasets = datasets;
+        adjustPointSizes(chart);
+        chart.update();
+
+        // Ajuste taille chart
+        var c = chartElements[entity.name];
+        var visibles = Object.values(chartElements).filter(function(c) { return c.style.display !== 'none'; });
+        var firstNine = visibles.slice(0, 9);
+        if (!c.classList.contains('single-visible-single-agency') && uniformSizeForFirstNine && firstNine.includes(c)) {
+          c.style.width = uniformSizeForFirstNine.width;
+          c.style.height = uniformSizeForFirstNine.height;
+        } else if (!c.classList.contains('single-visible-single-agency') && chartCustomSizes[entity.name]) {
+          var w = chartCustomSizes[entity.name].width;
+          var h = chartCustomSizes[entity.name].height;
+          if (parseInt(w) > 100 && parseInt(h) > 100) {
+            c.style.width = w;
+            c.style.height = h;
+          }
+        }
+      });
+
+      // Mise à jour de la matrice
+      buildDataMatrixReleve(activeCols, visibleAgencies);
+      makeForecastModifiedEditable();
+      updateGridLayout();
+    }
+
+    // Construit la matrice de données
+    function buildDataMatrixReleve(activeCols, visibleAgencies) {
+      if (activeCols.length === 0 || visibleAgencies.length === 0) {
+        dataMatrix.innerHTML = '<em>Aucune donnée à afficher</em>';
+        return;
+      }
+
+      var html = '<table class="data-table"><thead><tr><th>Agence</th>';
+      activeCols.forEach(function(i) { html += '<th>' + headers[i + 3] + '</th>'; });
+      html += '</tr></thead><tbody>';
+
+      visibleAgencies.forEach(function(name) {
+        var ag = agenciesData.find(function(a) { return a.name === name; });
+        if (!ag) return;
+
+        if (showForecastCheckbox.checked) {
+          html += '<tr><td>' + ag.name + ' (Prévisionnel) - ' + currentFlux + '</td>';
+          activeCols.forEach(function(i) {
+            html += '<td>' + (ag.forecast[i] !== undefined && ag.forecast[i] !== null ? ag.forecast[i] : '') + '</td>';
+          });
+          html += '</tr>';
+        }
+
+        if (showForecastModifiedCheckbox.checked) {
+          html += '<tr><td>' + ag.name + ' (Prévisionnel Modifié) - ' + currentFlux + '</td>';
+          activeCols.forEach(function(i) {
+            var val = forecastEditedData[currentFlux] && forecastEditedData[currentFlux][ag.name] && forecastEditedData[currentFlux][ag.name][i] !== undefined
+              ? forecastEditedData[currentFlux][ag.name][i]
+              : '';
+            html += '<td>' + val + '</td>';
+          });
+          html += '</tr>';
+        }
+
+        if (showForecastPeakCheckbox.checked) {
+          html += '<tr><td>' + ag.name + ' (Prévisionnel Peak) - ' + currentFlux + '</td>';
+          activeCols.forEach(function(i) {
+            html += '<td>' + (ag.forecastPeak[i] !== undefined && ag.forecastPeak[i] !== null ? ag.forecastPeak[i] : '') + '</td>';
+          });
+          html += '</tr>';
+        }
+
+        if (showActualCheckbox.checked) {
+          html += '<tr><td>' + ag.name + ' (Réalisé) - ' + currentFlux + '</td>';
+          activeCols.forEach(function(i) {
+            html += '<td>' + (ag.actual[i] !== undefined && ag.actual[i] !== null ? ag.actual[i] : '') + '</td>';
+          });
+          html += '</tr>';
+        }
+
+        if (showHistoricalCheckbox.checked) {
+          html += '<tr><td>' + ag.name + ' (Historique) - ' + currentFlux + '</td>';
+          activeCols.forEach(function(i) {
+            html += '<td>' + (ag.historique[i] !== undefined && ag.historique[i] !== null ? ag.historique[i] : '') + '</td>';
+          });
+          html += '</tr>';
+        }
+      });
+
+      html += '</tbody></table>';
+      dataMatrix.innerHTML = html;
+    }
+
+    // Rend la ligne prévision modifié éditable
+    function makeForecastModifiedEditable() {
+      var table = dataMatrix.querySelector('table');
+      if (!table) return;
+
+      // Supprime les attributs contenteditable existants pour éviter les doublons
+      table.querySelectorAll('td[contenteditable]').forEach(function(td) { td.removeAttribute('contenteditable'); });
+
+      var rows = table.querySelectorAll('tbody tr');
+      rows.forEach(function(row) {
+        var cellLabel = row.cells[0].textContent || '';
+        if (cellLabel.includes('Prévisionnel Modifié')) {
+          for (var i = 1; i < row.cells.length; i++) {
+            var td = row.cells[i];
+            td.setAttribute('contenteditable', 'true');
+            td.dataset.agency = cellLabel.split(' (')[0];
+            td.dataset.index = i - 1;
+            td.dataset.flux = currentFlux;
+
+            td.addEventListener('input', function(e) {
+              var val = parseFloat(e.target.textContent.replace(',', '.'));
+              if (isNaN(val)) return;
+              var agencyName = e.target.dataset.agency;
+              var index = parseInt(e.target.dataset.index);
+              var flux = e.target.dataset.flux;
+
+              // Mettre à jour les données modifiées
+              if (!forecastEditedData[flux]) forecastEditedData[flux] = {};
+              if (!forecastEditedData[flux][agencyName]) forecastEditedData[flux][agencyName] = [];
+
+              forecastEditedData[flux][agencyName][index] = val;
+
+              // Mettre à jour le graph
+              var chart = chartInstances[agencyName];
+              if (chart) {
+                var datasetIndex = chart.data.datasets.findIndex(function(d) { return d.label.includes('Prévisionnel Modifié'); });
+                if (datasetIndex !== -1) {
+                  chart.data.datasets[datasetIndex].data[index] = val;
+                  chart.update('none');
+                }
+              }
+            });
+          }
+        }
+      });
+    }
+
+    // Ajuste l’affichage des points selon la checkbox (ne concerne que Prévisionnel Modifié)
+    function adjustPointSizes(chart) {
+      var showPoints = togglePointSizeCheckbox.checked;
+      chart.data.datasets.forEach(function(ds) {
+        if (ds.label.includes('Prévisionnel Modifié')) {
+          ds.pointRadius = showPoints ? 5 : 0;
+          ds.hitRadius = showPoints ? 10 : 2;
+        } else {
+          ds.pointRadius = 0;
+          ds.hitRadius = 6;
+        }
+      });
+      chart.update('none');
+    }
+
+    // Sauvegarde l’état des filtres
+    function saveFiltersState() {
+      filtersState = {
+        quarters: [...activeQuarters],
+        months: [...activeMonths],
+        showActual: showActualCheckbox.checked,
+        showForecast: showForecastCheckbox.checked,
+        showHistorical: showHistoricalCheckbox.checked,
+        showForecastPeak: showForecastPeakCheckbox.checked,
+        agencySelections: agencyCheckboxes.map(function(cb) { return { name: cb.dataset.agency, checked: cb.checked, region: cb.dataset.region }; }),
+        regionSelections: Object.fromEntries(Object.entries(regionCheckboxes).map(function([k, cb]) { return [k, cb.checked]; })),
+        allChecked: checkboxAll ? checkboxAll.checked : true
+      };
+    }
+
+    // Restaure l’état des filtres
+    function restoreFiltersState() {
+      if (filtersState && filtersState.quarters && filtersState.months) {
+        activeQuarters = new Set(filtersState.quarters);
+        activeMonths = new Set(filtersState.months);
+        showActualCheckbox.checked = filtersState.showActual !== undefined ? filtersState.showActual : true;
+        showForecastCheckbox.checked = filtersState.showForecast !== undefined ? filtersState.showForecast : true;
+        showHistoricalCheckbox.checked = filtersState.showHistorical !== undefined ? filtersState.showHistorical : true;
+        showForecastPeakCheckbox.checked = filtersState.showForecastPeak !== undefined ? filtersState.showForecastPeak : true;
+      }
+    }
+
+    // Retourne les colonnes actives (filtrées)
+    function getActiveColumns() {
+      var cols = [];
+      for (var i = 3; i < headers.length; i++)
+        if (activeQuarters.has(quartersRow[i]) && activeMonths.has(monthsRow[i])) cols.push(i - 3);
+      return cols;
+    }
+
+    // Met à jour la disposition de la grille
+    function updateGridLayout() {
+      var visibles = Object.values(chartElements).filter(function(c) { return c.style.display !== 'none'; });
+      chartGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(260px,1fr))';
+      var n = visibles.length;
+      visibles.forEach(function(c) {
+        if (c.classList.contains('single-visible-single-agency')) return;
+        c.classList.remove('single-agency');
+        c.style.gridColumn = '';
+        var agency = c.dataset.agency;
+        if (n >= 1 && n <= 9 && uniformSizeForFirstNine && visibles.slice(0,9).includes(c)) {
+          c.style.width = uniformSizeForFirstNine.width;
+          c.style.height = uniformSizeForFirstNine.height;
+        } else if (chartCustomSizes[agency]) {
+          var w = chartCustomSizes[agency].width;
+          var h = chartCustomSizes[agency].height;
+          if (parseInt(w) > 100 && parseInt(h) > 100) {
+            c.style.width = w;
+            c.style.height = h;
+          }
+        } else {
+          c.style.width = '';
+          c.style.height = calcHeight(n) + 'px';
+        }
+      });
+    }
+
+    function calcHeight(num) { return num === 1 ? 300 : (num <= 3 ? 220 : 180); }
+
+    // Mémorise les états plein écran
+    function memorizeFullscreenBeforeReload() {
+      fullscreenAgencies = [];
+      Object.keys(chartElements).forEach(function(agencyName) {
+        var container = chartElements[agencyName];
+        if (container.classList.contains('single-visible-single-agency')) {
+          fullscreenAgencies.push(agencyName);
+          chartCustomSizes[agencyName] = {
+            width: container.style.width || getComputedStyle(container).width,
+            height: container.style.height || getComputedStyle(container).height
+          };
+        }
+      });
+    }
+
+    // Restaure les états plein écran
+    function restoreFullscreenAfterReload() {
+      fullscreenAgencies.forEach(function(agencyName) {
+        var container = chartElements[agencyName];
+        if (container) {
+          container.classList.add('single-visible-single-agency');
+          container.querySelector('.close-btn').style.display = 'block';
+          if (chartCustomSizes[agencyName]) {
+            container.style.width = chartCustomSizes[agencyName].width;
+            container.style.height = chartCustomSizes[agencyName].height;
+          }
+          var chart = chartInstances[agencyName];
+          if (chart) chart.resize();
+        }
+      });
+    }
+
+    // Active/désactive le plein écran
+    function toggleFullscreen(container) {
+      if (container.classList.contains('single-visible') || container.classList.contains('single-visible-single-agency'))
+        exitFullscreen(container);
+      else
+        enterFullscreen(container);
+    }
+
+    // Passe en plein écran
+    function enterFullscreen(container) {
+      var agency = container.dataset.agency;
+      var width = container.style.width || getComputedStyle(container).width;
+      var height = container.style.height || getComputedStyle(container).height;
+      if (parseInt(width) < 100) width = "600px";
+      if (parseInt(height) < 100) height = "400px";
+      chartCustomSizes[agency] = { width: width, height: height };
+      uniformSizeForFirstNine = null;
+      container.classList.add('single-visible-single-agency');
+      container.querySelector('.close-btn').style.display = 'block';
+      container.style.width = width;
+      container.style.height = height;
+      var chart = chartInstances[agency];
+      if (chart) chart.resize();
+    }
+
+    // Quitte le plein écran
+    function exitFullscreen(container) {
+      var agency = container.dataset.agency;
+      container.classList.remove('single-visible');
+      container.classList.remove('single-visible-single-agency');
+      container.querySelector('.close-btn').style.display = 'none';
+      container.style.width = chartCustomSizes[agency] ? chartCustomSizes[agency].width : '';
+      container.style.height = chartCustomSizes[agency] ? chartCustomSizes[agency].height : '';
+      var chart = chartInstances[agency];
+      if (chart) chart.resize();
+    }
+
+    // Met à jour l’état des régions et de la case "Tous"
+    function updateRegionAndAllStates() {
+      Object.keys(regionCheckboxes).forEach(function(k) {
+        var allChecked = agencyCheckboxes.filter(function(a) { return a.dataset.region === k; }).every(function(a) { return a.checked; });
+        regionCheckboxes[k].checked = allChecked;
+      });
+      if (checkboxAll) {
+        checkboxAll.checked = agencyCheckboxes.every(function(cb) { return cb.checked; });
+      }
+    }
+// ajour pour data ia
+// Moyenne mobile (tendance glissante)
+function movingAverage(data, windowSize = 4) {
+  const result = [];
+  for (let i = 0; i < data.length; i++) {
+    const start = Math.max(0, i - windowSize + 1);
+    const subset = data.slice(start, i + 1);
+    const avg = subset.reduce((a, b) => a + b, 0) / subset.length;
+    result.push(avg);
+  }
+  return result;
+}
+
+// Écart-type mobile
+function slidingStdDev(data, windowSize = 4) {
+  const result = [];
+  for (let i = 0; i < data.length; i++) {
+    const start = Math.max(0, i - windowSize + 1);
+    const subset = data.slice(start, i + 1);
+    const mean = subset.reduce((a, b) => a + b, 0) / subset.length;
+    const variance = subset.reduce((a, b) => a + (b - mean) ** 2, 0) / subset.length;
+    result.push(Math.sqrt(variance));
+  }
+  return result;
+}
+
+
+function addIndicatorColumns(data) {
+  const table = document.querySelector('#matrix-table');
+  if (!table) return;
+
+  const headers = Array.from(table.querySelectorAll('thead tr th'))
+    .map(th => th.textContent);
+  const newCols = ['Trend', 'Écart-type', 'Tendance'];
+
+  const headRow = table.querySelector('thead tr');
+  newCols.forEach(col => {
+    if (!headers.includes(col)) {
+      const th = document.createElement('th');
+      th.textContent = col;
+      headRow.appendChild(th);
+    }
+  });
+
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  rows.forEach((row, rowIdx) => {
+    newCols.forEach(col => {
+      const key = col.toLowerCase().replace(/ /g, '');
+      let td = Array.from(row.children)
+        .find(cell => cell.dataset.type === key);
+      if (!td) {
+        td = document.createElement('td');
+        td.dataset.type = key;
+        row.appendChild(td);
+      }
+      td.textContent = (typeof data[rowIdx][key] === 'number') 
+        ? data[rowIdx][key].toFixed(2) 
+        : data[rowIdx][key] || '';
+    });
+  });
+}
+//Pour récupérer les données de la matrice (prêtes à traiter ou à envoyer à l’IA) :
+function extractTableData() {
+  const table = document.querySelector('#matrix-table');
+  if (!table) return [];
+
+  const headers = Array.from(table.querySelectorAll('thead th'))
+    .map(th => th.textContent.trim());
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  
+  return rows.map(row => {
+    const cells = Array.from(row.querySelectorAll('td'))
+      .map(cell => parseFloat(cell.textContent.replace(/,/g, '')) || 0);
+    const obj = {};
+    headers.forEach((header, idx) => {
+      obj[header] = cells[idx];
+    });
+    return obj;
+  });
+}
+
+
+
+//// Fonction pour ajouter ou mettre à jour une cellule dans une ligne
+function addCellToRow(row, value) {
+  const td = document.createElement('td');
+  td.textContent = value;
+  row.appendChild(td);
+}
+
+// Fonction pour créer une nouvelle ligne d'indicateur
+function addIndicatorRow(agency, indicatorName, values, tbody) {
+  const row = document.createElement('tr');
+  addCellToRow(row, `${agency} (${indicatorName})`);
+  values.forEach(val => addCellToRow(row, val));
+  tbody.appendChild(row);
+}
+
+// Fonction pour traiter le retour de l'IA et mettre à jour la matrice
+function processIAResponse(iaResponse) {
+  const table = document.getElementById('matrix-table');
+  if (!table) return;
+  const tbody = table.querySelector('tbody');
+
+  iaResponse.forEach(agencyJson => {
+    const agencyName = agencyJson.agence;
+    // Crée les trois lignes (Trend, Écart-type, Moyenne)
+    const trendValues = agencyJson.periods.map(p => p.trend);
+    const stdDevValues = agencyJson.periods.map(p => p.stdDev);
+    const movingAvgValues = agencyJson.periods.map(p => p.movingAvg);
+
+    addIndicatorRow(agencyName, 'Trend', trendValues, tbody);
+    addIndicatorRow(agencyName, 'Écart-type', stdDevValues, tbody);
+    addIndicatorRow(agencyName, 'Moyenne mobile', movingAvgValues, tbody);
+  });
+
+  // Met à jour les graphes ici (voir section suivante)
+}
+//Pour afficher la courbe “Trend” (et les autres indicateurs) sur les graphes :
+function updateChartsWithIndicators(iaResponse) {
+  iaResponse.forEach(agencyJson => {
+    const agencyName = agencyJson.agence;
+    // Supposons que tu as un graphe par agence (chartInstances[agencyName])
+    const chart = chartInstances[agencyName];
+    if (!chart) return;
+
+    // Efface les anciennes séries si besoin
+    ['Trend', 'Écart-type', 'Moyenne mobile'].forEach(label => {
+      chart.data.datasets = chart.data.datasets.filter(ds => ds.label !== label);
+    });
+
+    // Ajoute les nouvelles séries
+    chart.data.datasets.push({
+      label: 'Trend',
+      data: agencyJson.periods.map(p => p.trend),
+      borderColor: 'orange',
+      fill: false,
+      tension: 0.3
+    });
+    chart.data.datasets.push({
+      label: 'Écart-type',
+      data: agencyJson.periods.map(p => p.stdDev),
+      borderColor: 'red',
+      fill: false,
+      tension: 0.3
+    });
+    chart.data.datasets.push({
+      label: 'Moyenne mobile',
+      data: agencyJson.periods.map(p => p.movingAvg),
+      borderColor: 'blue',
+      fill: false,
+      tension: 0.3
+    });
+
+    chart.update();
+  });
+}
+
+//Fonction principale pour tout synchroniser
+function processIndicators() {
+  // 1. Récupère les données du tableau
+  let data = extractTableData();
+
+  // 2. Calcule les indicateurs manquants si besoin
+  data.forEach(agency => {
+    agency.trend = agency.trend || (agency.Prevenu ? [...agency.Prevenu] : []); // Remplacer par la vraie série Trend si disponible
+    agency.ecarttype = agency.ecarttype || (agency.Prevenu ? slidingStdDev(agency.Prevenu) : []);
+    agency.tendance = agency.tendance || (agency.Prevenu ? movingAverage(agency.Prevenu) : []);
+  });
+
+  // 3. Met à jour le tableau HTML
+  addIndicatorColumns(data);
+
+  // 4. Met à jour les graphes
+  updateChartsWithIndicators(data);
+}
+
+    // Export Excel
+    function exportMatrixToExcel() {
+      var table = dataMatrix.querySelector('table');
+      if (!table) {
+        alert('Aucune donnée à exporter !');
+        return;
+      }
+      var wb = XLSX.utils.book_new();
+      var ws = XLSX.utils.table_to_sheet(table);
+      XLSX.utils.book_append_sheet(wb, ws, "Données");
+      var filename = "Donnees_Previsionnelles_" + new Date().toISOString().slice(0, 10) + ".xlsx";
+      XLSX.writeFile(wb, filename);
+    }
+// partie ia
+
+
+function formatDataForIa(data) {
+  if (!data || !data.headers || !data.rows) return '';
+  // On génère un tableau texte : colonnes séparées par des tabulations, chaque ligne sur une nouvelle ligne
+  let csv = data.headers.join('\t') + '\n'; // Ligne d'en-tête
+  data.rows.forEach(row => {
+    csv += row.join('\t') + '\n';
+  });
+  return csv;
+}
+
+
+
+
+function getSelectedDataMatrix() {
+  let table = document.querySelector('#dataMatrix table');
+  if (!table) return null;
+  let headers = [...table.querySelectorAll('thead th')].map(th => th.textContent.trim());
+  let rows = [];
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    let style = window.getComputedStyle(tr);
+    if (style.display !== 'none') {
+      let row = [...tr.querySelectorAll('td')].map(td => td.textContent.trim());
+      rows.push(row);
+    }
+  });
+  return { headers, rows };
+}
+
+const analyzeButton = document.getElementById('analyzeButton');
+const iaPrompt = document.getElementById('iaPrompt');
+const iaResponse = document.getElementById('iaResponse');
+
+async function sendDataToIaWithSelectedData() {
+  const data = getSelectedDataMatrix();
+  if (!data || data.rows.length === 0) {
+    iaResponse.textContent = "Aucune donnée sélectionnée à analyser.";
+    return;
+  }
+  const prompt = iaPrompt.value.trim();
+  const formattedData = formatDataForIa(data); // On formate en texte lisible
+  console.log('DATA envoyée :', formattedData); // VERIFIE ICI dans la console !
+
+  iaResponse.textContent = "Envoi en cours...";
+  try {
+    const response = await fetch('http://127.0.0.1:5000/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, data: formattedData }) // On envoie la chaîne texte
+    });
+    const result = await response.json();
+    console.log('Réponse reçue :', result); // VERIFIE ICI dans la console !
+    iaResponse.textContent = result.analysis || "Aucune réponse.";
+  } catch (error) {
+    iaResponse.textContent = "Erreur lors de l’envoi: " + error.message;
+    console.error('ERREUR:', error);
+  }
+}
+
+analyzeButton.addEventListener('click', sendDataToIaWithSelectedData);
+processIAResponse(iaResponse);
+updateChartsWithIndicators(iaResponse);
+	// fin partie ia
+	
+	
+	
+    // --- Événements ---
+    importButton.addEventListener('click', function() { importFile.click(); });
+    importFile.addEventListener('change', handleFileImport);
+    refreshButton.addEventListener('click', function() { if (Object.keys(allSheetsData).length > 0) loadSheet(currentFlux); });
+    fluxSelect.addEventListener('change', function() {
+      saveFiltersState();
+      currentFlux = fluxSelect.value;
+      if (Object.keys(allSheetsData).length > 0) {
+        memorizeFullscreenBeforeReload();
+        loadSheet(currentFlux);
+        restoreAgencyState();
+        setTimeout(function() { updateChartsAndMatrix(); }, 10);
+        setTimeout(function() { restoreFullscreenAfterReload(); }, 50);
+      }
+    });
+    showActualCheckbox.addEventListener('change', function() { saveFiltersState(); updateChartsAndMatrix(); });
+    showForecastCheckbox.addEventListener('change', function() { saveFiltersState(); updateChartsAndMatrix(); });
+    showHistoricalCheckbox.addEventListener('change', function() { saveFiltersState(); updateChartsAndMatrix(); });
+    showForecastPeakCheckbox.addEventListener('change', function() { saveFiltersState(); updateChartsAndMatrix(); });
+    showForecastModifiedCheckbox.addEventListener('change', function() { saveFiltersState(); updateChartsAndMatrix(); });
+    toggleAgenciesBtn.addEventListener('click', function() { agencyList.style.display = agencyList.style.display === 'flex' ? 'none' : 'flex'; });
+    toggleDataBtn.addEventListener('click', function() {
+      dataMatrix.style.display = dataMatrix.style.display === 'none' ? 'block' : 'none';
+      toggleDataBtn.textContent = dataMatrix.style.display === 'none' ? 'Afficher données' : 'Masquer données';
+    });
+    moisToggleBtn.addEventListener('click', function() {
+      moisContainer.style.display = moisContainer.style.display === 'none' || moisContainer.style.display === '' ? 'block' : 'none';
+    });
+    exportExcelBtn.addEventListener('click', exportMatrixToExcel);
+    togglePointSizeCheckbox.addEventListener('change', function() {
+      showPoints = togglePointSizeCheckbox.checked;
+      updateChartsAndMatrix();
+    });
+    dataMatrix.addEventListener('dblclick', function() {
+      if (!dataMatrix.classList.contains('fullscreen')) {
+        dataMatrix.classList.add('fullscreen');
+        dataMatrixCloseBtn.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
