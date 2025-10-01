@@ -372,7 +372,7 @@
 	<div class="ia-section">
   <button id="analyzeButton">Analyser les données</button>
   <div id="iaPromptContainer" style="margin-top: 8px;">
-    <label for="iaPrompt">Demande précise à l'IA :</label>
+    <label for="iaPrompt">Demande Analyse des données :</label>
     <input type="text" id="iaPrompt" placeholder="Ex: Analyse les écarts entre prévisions et réalisés, identifie les outliers..." style="width: 100%; margin-top: 4px;">
   </div>
   <div id="iaResponse" class="ia-response" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; min-height: 80px;">
@@ -1360,72 +1360,38 @@ function extractTableData() {
 
 
 
-//// Fonction pour ajouter ou mettre à jour une cellule dans une ligne
-function addCellToRow(row, value) {
-  const td = document.createElement('td');
-  td.textContent = value;
-  row.appendChild(td);
-}
-
-// Fonction pour créer une nouvelle ligne d'indicateur
-function addIndicatorRow(agency, indicatorName, values, tbody) {
-  const row = document.createElement('tr');
-  addCellToRow(row, `${agency} (${indicatorName})`);
-  values.forEach(val => addCellToRow(row, val));
-  tbody.appendChild(row);
-}
-
-// Fonction pour traiter le retour de l'IA et mettre à jour la matrice
-function processIAResponse(iaResponse) {
-  const table = document.getElementById('matrix-table');
-  if (!table) return;
-  const tbody = table.querySelector('tbody');
-
-  iaResponse.forEach(agencyJson => {
-    const agencyName = agencyJson.agence;
-    // Crée les trois lignes (Trend, Écart-type, Moyenne)
-    const trendValues = agencyJson.periods.map(p => p.trend);
-    const stdDevValues = agencyJson.periods.map(p => p.stdDev);
-    const movingAvgValues = agencyJson.periods.map(p => p.movingAvg);
-
-    addIndicatorRow(agencyName, 'Trend', trendValues, tbody);
-    addIndicatorRow(agencyName, 'Écart-type', stdDevValues, tbody);
-    addIndicatorRow(agencyName, 'Moyenne mobile', movingAvgValues, tbody);
-  });
-
-  // Met à jour les graphes ici (voir section suivante)
-}
+//
 //Pour afficher la courbe “Trend” (et les autres indicateurs) sur les graphes :
-function updateChartsWithIndicators(iaResponse) {
-  iaResponse.forEach(agencyJson => {
-    const agencyName = agencyJson.agence;
-    // Supposons que tu as un graphe par agence (chartInstances[agencyName])
-    const chart = chartInstances[agencyName];
+function updateChartsWithIndicators(data) {
+  data.forEach(agency => {
+    const chart = chartInstances[agency.name];
     if (!chart) return;
 
-    // Efface les anciennes séries si besoin
-    ['Trend', 'Écart-type', 'Moyenne mobile'].forEach(label => {
+    // Supprime les anciennes séries
+    ['Trend', 'Écart-type', 'Tendance'].forEach(label => {
       chart.data.datasets = chart.data.datasets.filter(ds => ds.label !== label);
     });
 
     // Ajoute les nouvelles séries
     chart.data.datasets.push({
       label: 'Trend',
-      data: agencyJson.periods.map(p => p.trend),
+      data: agency.trend || [],
       borderColor: 'orange',
       fill: false,
       tension: 0.3
     });
+
     chart.data.datasets.push({
       label: 'Écart-type',
-      data: agencyJson.periods.map(p => p.stdDev),
+      data: agency.ecarttype || [],
       borderColor: 'red',
       fill: false,
       tension: 0.3
     });
+
     chart.data.datasets.push({
-      label: 'Moyenne mobile',
-      data: agencyJson.periods.map(p => p.movingAvg),
+      label: 'Tendance',
+      data: agency.tendance || [],
       borderColor: 'blue',
       fill: false,
       tension: 0.3
@@ -1529,8 +1495,6 @@ async function sendDataToIaWithSelectedData() {
 }
 
 analyzeButton.addEventListener('click', sendDataToIaWithSelectedData);
-processIAResponse(iaResponse);
-updateChartsWithIndicators(iaResponse);
 	// fin partie ia
 	
 	
